@@ -700,8 +700,8 @@
   /* The season opens on SEASON_EPOCH. Changing that date — or bumping SEASON_SERIAL
      to re-arm the same date — starts a fresh season on the next load: progress
      resets, preferences and the API key carry over. */
-  var SEASON_EPOCH = "2026-08-01";
-  var SEASON_SERIAL = 2;
+  var SEASON_EPOCH = "2026-08-02";
+  var SEASON_SERIAL = 3;
   var SEASON_ID = SEASON_EPOCH + "#" + SEASON_SERIAL;
   var API_URL = "https://api.anthropic.com/v1/messages";
   var PROXY_URL = "/api/claude";   /* hosted mode: the key stays on the server */
@@ -1720,7 +1720,13 @@
   /* The log is the ground truth. Every entry carries an ISO timestamp, so the
      union of two devices' logs is the real history — last-write-wins would
      silently throw away a session you did on the other device. */
+  function sameSeason(s) { return !!(s && s.epoch === SEASON_ID); }
+
   function mergeSeasons(a, b) {
+    /* A reset bumps SEASON_ID. Without this, the old season sitting on the
+       server would merge straight back in on the next device that syncs. */
+    if (!sameSeason(a)) a = null;
+    if (!sameSeason(b)) b = null;
     if (!a) return b;
     if (!b) return a;
     var newer = String(b.updatedAt || "") > String(a.updatedAt || "") ? b : a;

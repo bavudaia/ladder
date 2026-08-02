@@ -26,6 +26,7 @@ EXPORT = """
     bootApp: bootApp, lockApp: lockApp, showAuth: showAuth, submitAuth: submitAuth,
     renderAuth: renderAuth, accountNames: accountNames, readAccounts: readAccounts,
     seasonKey: seasonKey, renderSettings: renderSettings, MIN_PASSWORD: MIN_PASSWORD,
+    SEASON_ID: SEASON_ID, mergeSeasons: mergeSeasons,
     get SYNC() { return SYNC; }, mergeSeasons: mergeSeasons, pushRemote: pushRemote,
     pullRemote: pullRemote, probeHost: probeHost, recomputeFromLog: recomputeFromLog,
     usingProxy: usingProxy, saveLocal: saveLocal, hostedLogin: hostedLogin,

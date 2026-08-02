@@ -6,7 +6,7 @@ from harness import HEAD, dom, run, report
 # A season already in progress under an older serial must be wiped and re-armed
 # to open on the epoch date, keeping preferences and the API key.
 STALE = {
-    "version": 2, "epoch": "2026-08-01", "createdAt": "2026-07-20",
+    "version": 2, "epoch": "2026-08-01#2", "createdAt": "2026-07-20",
     "targetWeeks": 12, "model": "claude-sonnet-5", "autoBrief": False, "focus": "caches",
     "voice": {"enabled": True, "voiceURI": "v-en-gb", "rate": 1.4, "lang": "en-GB", "silence": 2},
     "user": {"points": 870, "streak": 6, "longestStreak": 9, "lastLogDate": "2026-07-30",
@@ -20,15 +20,15 @@ STALE = {
     "lastPeerSyncDate": "2026-07-30", "fieldHistory": [], "milestones": [{"id": "first_log", "done": True}],
     "activeSession": {"activityId": "dsa_hard", "status": "ready", "index": 0, "messages": []}, "coach": None,
 }
-CURRENT = dict(STALE, epoch="2026-08-01#2")
+CURRENT = dict(STALE, epoch="2026-08-02#3")
 
 SESSIONS = HEAD + r"""
 print("-- season state --");
 /* The epoch is a fixed date, so whether the season has opened depends on when
    this runs. Assert the branch that actually applies today. */
 var TODAY = new Date().toISOString().slice(0,10);
-var PRESEASON = TODAY < "2026-08-01";
-ok(T.state.createdAt === (PRESEASON ? "2026-08-01" : TODAY),
+var PRESEASON = TODAY < "2026-08-02";
+ok(T.state.createdAt === (PRESEASON ? "2026-08-02" : TODAY),
    "a season opens on the epoch date, or today once that has passed, got " + T.state.createdAt);
 ok(T.state.user.points === 0 && T.state.user.history.length === 0, "progress is empty");
 if (PRESEASON) {
@@ -263,9 +263,9 @@ done();
 
 SEASON = HEAD + r"""
 print("-- stale season is re-armed for the epoch date --");
-ok(T.state.epoch === "2026-08-01#2", "state carries the new season id, got " + T.state.epoch);
+ok(T.state.epoch === "2026-08-02#3", "state carries the new season id, got " + T.state.epoch);
 var TODAY2 = new Date().toISOString().slice(0,10);
-ok(T.state.createdAt === (TODAY2 < "2026-08-01" ? "2026-08-01" : TODAY2),
+ok(T.state.createdAt === (TODAY2 < "2026-08-02" ? "2026-08-02" : TODAY2),
    "a re-armed season opens on the epoch date, or today once that has passed, got " + T.state.createdAt);
 ok(T.state.user.points === 0, "points wiped, got " + T.state.user.points);
 ok(T.state.user.history.length === 0, "log wiped");
@@ -294,7 +294,7 @@ done();
 
 RESUME = HEAD + r"""
 print("-- a season already on the current serial is left alone --");
-ok(T.state.epoch === "2026-08-01#2", "season id unchanged");
+ok(T.state.epoch === "2026-08-02#3", "season id unchanged");
 ok(T.state.createdAt === "2026-07-20", "start date preserved, got " + T.state.createdAt);
 ok(T.state.user.points === 870, "points preserved, got " + T.state.user.points);
 ok(T.state.user.history.length === 1, "log preserved");

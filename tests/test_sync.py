@@ -69,7 +69,7 @@ def season(points, entries, updated, rev=1, extra=None):
                      "bar": "Meets the senior bar", "source": "AI", "at": x["at"]}
                     for x in days[d]]} for d in sorted(days)]
     s = {
-        "version": 2, "epoch": "2026-08-01#2", "createdAt": "2026-08-01", "targetWeeks": 16,
+        "version": 2, "epoch": "2026-08-02#3", "createdAt": "2026-08-01", "targetWeeks": 16,
         "model": "claude-opus-5", "autoBrief": True, "focus": "", "rev": rev, "updatedAt": updated,
         "voice": {"enabled": False, "voiceURI": "", "rate": 1, "lang": "en-US", "silence": 4},
         "user": {"points": points, "streak": 1, "longestStreak": 1,
@@ -175,6 +175,16 @@ var again = T.mergeSeasons(m, phone);
 ok(again.user.points === 180, "re-merging an already-merged season changes nothing, got " + again.user.points);
 ok(again.user.history[0].entries.length === 2, "and does not duplicate entries");
 
+print("-- a reset is not undone by the server --");
+var lastSeason = JSON.parse(JSON.stringify(phone));
+lastSeason.epoch = "2026-08-01#2";          /* the season before the reset */
+lastSeason.user.points = 9999;
+var kept = T.mergeSeasons(laptop, lastSeason);
+ok(kept === laptop, "a season from a previous serial is ignored, not merged");
+ok(kept.user.points === 130, "so its points cannot come back, got " + kept.user.points);
+var both = T.mergeSeasons(lastSeason, lastSeason);
+ok(both === null, "two stale seasons merge to nothing rather than resurrecting one");
+
 print("-- one side empty --");
 ok(T.mergeSeasons(null, phone) === phone, "a device with nothing takes the server's season");
 ok(T.mergeSeasons(laptop, null) === laptop, "and vice versa");
@@ -258,7 +268,7 @@ done();
 def js_fixtures():
     import json as _json
     return (
-        "var LAPTOP = %s;\nvar PHONE = %s;\n" % (_json.dumps(LAPTOP), _json.dumps(PHONE)) +
+        "var LAPTOP = %s;\nvar PHONE = %s;\nLAPTOP.epoch = T.SEASON_ID; PHONE.epoch = T.SEASON_ID;\n" % (_json.dumps(LAPTOP), _json.dumps(PHONE)) +
         """
 function MKSEASON(items, updated, rev){
   var byDate = {};
@@ -268,7 +278,7 @@ function MKSEASON(items, updated, rev){
       bonus:0, points:it.points, score:70, bar:"b", source:"AI", at:it.at});
   });
   var s = JSON.parse(JSON.stringify(LAPTOP));
-  s.rev = rev; s.updatedAt = updated;
+  s.rev = rev; s.updatedAt = updated; s.epoch = T.SEASON_ID;
   s.user.history = Object.keys(byDate).sort().map(function(d){
     return { date:d, points:byDate[d].reduce(function(n,e){return n+e.points;},0), rankThatDay:1, entries:byDate[d] };
   });

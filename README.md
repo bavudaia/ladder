@@ -25,9 +25,9 @@ Points are awarded for *completing* a session, at the values above. The grade (0
 
 ## The season
 
-**The current season opens on 1 August 2026** — that's Day 1. Until then the app shows a `T-` countdown and the chart holds.
+**The current season opens on 2 August 2026** — that's Day 1. Before the opening date the app shows a `T-` countdown and the chart holds.
 
-Two constants at the top of the script control this: `SEASON_EPOCH` (the opening date) and `SEASON_SERIAL`. Changing either wipes progress and arms a fresh season the next time you open the page, keeping your API key and preferences — bump the serial to restart on the *same* date you already have. "Reset season" in Settings starts a season from today instead (or from the epoch date, if that's still in the future).
+Two constants at the top of the script control this: `SEASON_EPOCH` (the opening date) and `SEASON_SERIAL`. Changing either wipes progress and arms a fresh season the next time you open the page, keeping your API key and preferences — bump the serial to restart on the *same* date you already have. A synced season from a previous serial is ignored rather than merged, so a reset is not undone by the next device that comes online. "Reset season" in Settings starts a season from today instead (or from the epoch date, if that's still in the future).
 
 Nine rivals matched to your skill level — three grinders, three steady, three casual. They train once per real calendar day whether or not you open the app, so falling behind is real. Standings, division (Unranked → Master), and the trajectory chart all update from that.
 

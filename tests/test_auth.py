@@ -129,7 +129,7 @@ settle();
 print("-- upgrading a v1 install --");
 localStorage.setItem("prephero_anthropic_key", "sk-ant-old-plaintext");
 localStorage.setItem(T.STORAGE_KEY, JSON.stringify({
-  version:2, epoch:"2026-08-01#2", createdAt:"2026-08-01", targetWeeks:16, model:"claude-opus-5",
+  version:2, epoch:"2026-08-02#3", createdAt:"2026-08-02", targetWeeks:16, model:"claude-opus-5",
   autoBrief:true, focus:"", voice:{enabled:false,voiceURI:"",rate:1,lang:"en-US",silence:4},
   user:{points:1234, streak:3, longestStreak:5, lastLogDate:"2026-08-01", history:[]},
   peers:[], lastPeerSyncDate:null, fieldHistory:[], milestones:[], activeSession:null, coach:null }));
