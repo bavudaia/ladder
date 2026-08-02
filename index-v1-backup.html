@@ -1,0 +1,1028 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PrepHero · Senior SWE Interview Command</title>
+<style>
+  :root {
+    --surface: #EEF1F4;
+    --surface-raised: #FFFFFF;
+    --surface-sunken: #E3E8EC;
+    --border: #C7D0D8;
+    --border-strong: #A9B4BE;
+    --text-primary: #131A22;
+    --text-secondary: #48545F;
+    --text-muted: #7C8894;
+    --accent: #A8650B;
+    --accent-strong: #8C5309;
+    --accent-soft: #F0DFC0;
+    --peer: #2F5E7A;
+    --peer-soft: #D8E6EC;
+    --good: #1F7A46;
+    --good-soft: #DCEFE2;
+    --critical: #B23A3A;
+    --critical-soft: #F6DEDE;
+    --grid-line: rgba(19,26,34,0.09);
+    --shadow: 0 1px 2px rgba(19,26,34,0.07);
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo, Consolas, monospace;
+    --font-sans: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --surface: #0E141B;
+      --surface-raised: #161F29;
+      --surface-sunken: #0A0F14;
+      --border: #2A3542;
+      --border-strong: #3C4B5B;
+      --text-primary: #E8EDF2;
+      --text-secondary: #A8B4C0;
+      --text-muted: #6B7885;
+      --accent: #F2B54A;
+      --accent-strong: #FFC968;
+      --accent-soft: rgba(242,181,74,0.16);
+      --peer: #6FB0D6;
+      --peer-soft: rgba(111,176,214,0.16);
+      --good: #57C084;
+      --good-soft: rgba(87,192,132,0.14);
+      --critical: #E8615F;
+      --critical-soft: rgba(232,97,95,0.16);
+      --grid-line: rgba(232,237,242,0.09);
+      --shadow: 0 1px 2px rgba(0,0,0,0.5);
+    }
+  }
+  :root[data-theme="dark"] {
+    --surface: #0E141B; --surface-raised: #161F29; --surface-sunken: #0A0F14;
+    --border: #2A3542; --border-strong: #3C4B5B;
+    --text-primary: #E8EDF2; --text-secondary: #A8B4C0; --text-muted: #6B7885;
+    --accent: #F2B54A; --accent-strong: #FFC968; --accent-soft: rgba(242,181,74,0.16);
+    --peer: #6FB0D6; --peer-soft: rgba(111,176,214,0.16);
+    --good: #57C084; --good-soft: rgba(87,192,132,0.14);
+    --critical: #E8615F; --critical-soft: rgba(232,97,95,0.16);
+    --grid-line: rgba(232,237,242,0.09); --shadow: 0 1px 2px rgba(0,0,0,0.5);
+  }
+  :root[data-theme="light"] {
+    --surface: #EEF1F4; --surface-raised: #FFFFFF; --surface-sunken: #E3E8EC;
+    --border: #C7D0D8; --border-strong: #A9B4BE;
+    --text-primary: #131A22; --text-secondary: #48545F; --text-muted: #7C8894;
+    --accent: #A8650B; --accent-strong: #8C5309; --accent-soft: #F0DFC0;
+    --peer: #2F5E7A; --peer-soft: #D8E6EC;
+    --good: #1F7A46; --good-soft: #DCEFE2;
+    --critical: #B23A3A; --critical-soft: #F6DEDE;
+    --grid-line: rgba(19,26,34,0.09); --shadow: 0 1px 2px rgba(19,26,34,0.07);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background:
+      linear-gradient(var(--grid-line) 1px, transparent 1px) 0 0 / 100% 28px,
+      var(--surface);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+
+  .app { max-width: 1180px; margin: 0 auto; padding: 20px 20px 48px; }
+
+  a { color: var(--accent); }
+  button { font-family: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .label {
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  /* ---------- Topbar ---------- */
+  .topbar {
+    display: flex; flex-wrap: wrap; gap: 16px 28px;
+    align-items: center; justify-content: space-between;
+    padding: 18px 20px;
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    box-shadow: var(--shadow);
+    margin-bottom: 18px;
+    position: relative;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-mark {
+    font-size: 26px; line-height: 1;
+    filter: saturate(0.9);
+  }
+  .brand h1 {
+    margin: 0; font-family: var(--font-mono); font-size: 20px;
+    letter-spacing: 0.06em; font-weight: 700;
+  }
+  .brand .tagline {
+    margin: 2px 0 0; font-size: 11.5px; color: var(--text-muted);
+    font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.07em;
+  }
+  .stat-strip { display: flex; flex-wrap: wrap; gap: 22px 28px; }
+  .stat { display: flex; flex-direction: column; gap: 3px; min-width: 64px; }
+  .stat-value { font-family: var(--font-mono); font-size: 21px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .pace-chip {
+    font-family: var(--font-mono); font-size: 12px; font-weight: 700;
+    letter-spacing: 0.04em; padding: 4px 8px; border-radius: 3px;
+    display: inline-block; width: fit-content;
+  }
+  .pace-good { background: var(--good-soft); color: var(--good); }
+  .pace-warn { background: var(--accent-soft); color: var(--accent-strong); }
+  .pace-bad { background: var(--critical-soft); color: var(--critical); }
+
+  /* ---------- Layout ---------- */
+  .grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+  .col-main, .col-side { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+  @media (max-width: 860px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+
+  .panel {
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    box-shadow: var(--shadow);
+    position: relative;
+  }
+  .panel::before, .panel::after {
+    content: ""; position: absolute; width: 9px; height: 9px;
+    border: 1px solid var(--border-strong); pointer-events: none; opacity: 0.55;
+  }
+  .panel::before { top: -1px; left: -1px; border-right: none; border-bottom: none; }
+  .panel::after { bottom: -1px; right: -1px; border-left: none; border-top: none; }
+  .panel-header {
+    display: flex; align-items: baseline; justify-content: space-between;
+    padding: 14px 18px 10px; border-bottom: 1px solid var(--border);
+    gap: 10px; flex-wrap: wrap;
+  }
+  .panel-header h2 {
+    margin: 0; font-family: var(--font-mono); font-size: 13px;
+    letter-spacing: 0.08em; text-transform: uppercase; font-weight: 700;
+  }
+  .panel-header .hint { font-size: 11.5px; color: var(--text-muted); }
+  .panel-body { padding: 16px 18px 18px; }
+
+  /* ---------- Log form ---------- */
+  .log-form { display: grid; grid-template-columns: 1.3fr 1fr 0.8fr; gap: 10px 12px; }
+  .log-form .field-note { grid-column: 1 / -1; }
+  .log-form label { display: block; font-size: 11.5px; color: var(--text-muted); margin-bottom: 4px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.06em; }
+  .log-form select, .log-form input[type="number"], .log-form input[type="text"] {
+    width: 100%; padding: 8px 9px; border-radius: 3px;
+    border: 1px solid var(--border); background: var(--surface-sunken);
+    color: var(--text-primary); font-size: 14px; font-family: var(--font-sans);
+  }
+  .log-form select:focus, .log-form input:focus { border-color: var(--accent); }
+  .log-actions { grid-column: 1 / -1; display: flex; align-items: center; gap: 14px; margin-top: 2px; }
+  .btn-primary {
+    background: var(--accent); color: var(--surface-raised); border: none;
+    padding: 10px 18px; border-radius: 3px; font-weight: 700; font-size: 13px;
+    letter-spacing: 0.03em; cursor: pointer; font-family: var(--font-mono);
+    text-transform: uppercase;
+  }
+  .btn-primary:hover { background: var(--accent-strong); }
+  .scoring-key { font-size: 11.5px; color: var(--text-muted); }
+  .scoring-key b { color: var(--text-secondary); font-weight: 600; }
+
+  /* ---------- Today / debrief ---------- */
+  .debrief-msg {
+    background: var(--accent-soft); border-left: 3px solid var(--accent);
+    padding: 10px 13px; border-radius: 0 3px 3px 0; font-size: 14px;
+    color: var(--text-primary); margin-bottom: 14px;
+  }
+  .today-empty { color: var(--text-muted); font-size: 13.5px; }
+  .entry-row {
+    display: flex; align-items: center; gap: 10px; padding: 7px 0;
+    border-bottom: 1px solid var(--grid-line); font-size: 13.5px;
+  }
+  .entry-row:last-child { border-bottom: none; }
+  .entry-cat { flex: 1; min-width: 0; }
+  .entry-cat .note { color: var(--text-muted); font-size: 12px; }
+  .entry-diff {
+    font-family: var(--font-mono); font-size: 10.5px; text-transform: uppercase;
+    padding: 2px 6px; border-radius: 2px; border: 1px solid var(--border-strong);
+    color: var(--text-secondary); letter-spacing: 0.04em;
+  }
+  .entry-pts { font-family: var(--font-mono); font-weight: 700; color: var(--accent); min-width: 42px; text-align: right; }
+  .today-total {
+    display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px;
+    border-top: 1px solid var(--border); font-family: var(--font-mono); font-size: 13px;
+  }
+
+  .history-list { margin-top: 14px; max-height: 320px; overflow-y: auto; padding-right: 2px; }
+  .history-day summary {
+    cursor: pointer; padding: 8px 4px; display: flex; justify-content: space-between;
+    font-size: 13px; list-style: none; gap: 8px;
+  }
+  .history-day summary::-webkit-details-marker { display: none; }
+  .history-day summary::before { content: "▸"; color: var(--text-muted); margin-right: 6px; font-size: 11px; }
+  .history-day[open] summary::before { content: "▾"; }
+  .history-day { border-bottom: 1px solid var(--grid-line); }
+  .history-day .hd-date { font-family: var(--font-mono); color: var(--text-secondary); }
+  .history-day .hd-meta { color: var(--text-muted); font-family: var(--font-mono); font-size: 12px; }
+  .history-day .entry-row { padding-left: 14px; }
+
+  /* ---------- Chart ---------- */
+  .chart-legend { display: flex; gap: 18px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); font-family: var(--font-mono); }
+  .legend-swatch { width: 16px; height: 2px; border-radius: 1px; }
+  .legend-swatch.you { background: var(--accent); }
+  .legend-swatch.field { background: repeating-linear-gradient(90deg, var(--peer) 0 4px, transparent 4px 7px); }
+  .chart-wrap { position: relative; }
+  .chart-wrap svg { width: 100%; height: auto; display: block; overflow: visible; }
+  .chart-wrap svg text { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .chart-tooltip {
+    position: absolute; pointer-events: none; background: var(--surface-raised);
+    border: 1px solid var(--border-strong); border-radius: 3px; padding: 7px 10px;
+    font-size: 12px; font-family: var(--font-mono); box-shadow: var(--shadow);
+    opacity: 0; transition: opacity 0.1s; white-space: nowrap; z-index: 5;
+  }
+  .chart-tooltip.visible { opacity: 1; }
+  .chart-tooltip .tt-date { color: var(--text-muted); margin-bottom: 3px; }
+  .chart-tooltip .tt-you { color: var(--accent); }
+  .chart-tooltip .tt-field { color: var(--peer); }
+  .table-toggle {
+    background: none; border: 1px solid var(--border); color: var(--text-secondary);
+    font-family: var(--font-mono); font-size: 11px; padding: 4px 8px; border-radius: 3px;
+    cursor: pointer; text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .table-toggle:hover { border-color: var(--accent); color: var(--accent); }
+  .data-table-wrap { overflow-x: auto; margin-top: 12px; }
+  table.data-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  table.data-table th, table.data-table td {
+    text-align: right; padding: 5px 8px; border-bottom: 1px solid var(--grid-line);
+    font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  }
+  table.data-table th:first-child, table.data-table td:first-child { text-align: left; }
+  table.data-table th { color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: 10.5px; letter-spacing: 0.05em; }
+
+  /* ---------- Gauges ---------- */
+  .gauge-row { display: grid; grid-template-columns: 130px 1fr 90px; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .gauge-row:last-child { margin-bottom: 0; }
+  .gauge-label { font-size: 13px; color: var(--text-secondary); }
+  .gauge-track { height: 8px; background: var(--surface-sunken); border-radius: 4px; overflow: hidden; }
+  .gauge-fill { height: 100%; background: var(--accent); border-radius: 4px; }
+  .gauge-meta { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); text-align: right; }
+
+  /* ---------- Leaderboard ---------- */
+  .lb-row { display: grid; grid-template-columns: 22px 1fr 56px; gap: 10px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--grid-line); }
+  .lb-row:last-child { border-bottom: none; }
+  .lb-rank { font-family: var(--font-mono); color: var(--text-muted); font-size: 12.5px; }
+  .lb-rank.you-rank { color: var(--accent); font-weight: 700; }
+  .lb-main { min-width: 0; }
+  .lb-name-line { display: flex; align-items: center; gap: 7px; font-size: 13px; margin-bottom: 3px; }
+  .lb-name { font-weight: 600; }
+  .lb-name.is-you { color: var(--accent); }
+  .lb-tier { font-family: var(--font-mono); font-size: 9.5px; text-transform: uppercase; color: var(--text-muted); border: 1px solid var(--border); padding: 1px 5px; border-radius: 2px; letter-spacing: 0.04em; }
+  .lb-badge { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.03em; }
+  .lb-badge.up { color: var(--good); }
+  .lb-badge.rest { color: var(--text-muted); }
+  .lb-bar-track { height: 5px; background: var(--surface-sunken); border-radius: 3px; overflow: hidden; }
+  .lb-bar-fill { height: 100%; border-radius: 3px; background: var(--border-strong); }
+  .lb-bar-fill.you-fill { background: var(--accent); }
+  .lb-points { font-family: var(--font-mono); font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+  .lb-note { font-size: 11.5px; color: var(--text-muted); margin-top: 10px; line-height: 1.5; }
+
+  /* ---------- Roadmap ---------- */
+  .phase-block { margin-bottom: 16px; }
+  .phase-block:last-child { margin-bottom: 0; }
+  .phase-title {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+    font-family: var(--font-mono); font-size: 11.5px; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--text-secondary);
+  }
+  .phase-current-chip {
+    background: var(--accent-soft); color: var(--accent-strong); font-size: 9.5px;
+    padding: 2px 6px; border-radius: 2px; letter-spacing: 0.04em;
+  }
+  .milestone-item { display: flex; align-items: flex-start; gap: 8px; padding: 4px 0; font-size: 13px; }
+  .milestone-item input[type="checkbox"] { margin-top: 3px; accent-color: var(--accent); width: 14px; height: 14px; flex-shrink: 0; }
+  .milestone-item.done label { color: var(--text-muted); text-decoration: line-through; }
+
+  /* ---------- Motivation ---------- */
+  .motivation-line { font-size: 15px; line-height: 1.55; color: var(--text-primary); font-style: normal; margin: 0 0 10px; }
+  .motivation-sub { font-size: 12.5px; color: var(--text-muted); line-height: 1.6; }
+
+  /* ---------- Settings ---------- */
+  .settings-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+  .settings-row:last-child { margin-bottom: 0; }
+  select.weeks-select { font-family: var(--font-mono); background: var(--surface-sunken); color: var(--text-primary); border: 1px solid var(--border); border-radius: 3px; padding: 5px 7px; }
+  .btn-danger {
+    background: none; border: 1px solid var(--critical); color: var(--critical);
+    padding: 6px 11px; border-radius: 3px; font-family: var(--font-mono); font-size: 11.5px;
+    text-transform: uppercase; letter-spacing: 0.04em; cursor: pointer;
+  }
+  .btn-danger:hover { background: var(--critical-soft); }
+
+  .footnote { text-align: center; margin-top: 26px; font-size: 11.5px; color: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">🎯</span>
+      <div>
+        <h1>PREPHERO</h1>
+        <p class="tagline">Senior SWE · Market-Ready Countdown</p>
+      </div>
+    </div>
+    <div class="stat-strip">
+      <div class="stat"><span class="label">T-Minus</span><span class="stat-value mono" id="clockValue">—</span></div>
+      <div class="stat"><span class="label">Week</span><span class="stat-value mono" id="weekValue">—</span></div>
+      <div class="stat"><span class="label">Streak</span><span class="stat-value mono" id="streakValue">—</span></div>
+      <div class="stat"><span class="label">Rank</span><span class="stat-value mono" id="rankValue">—</span></div>
+      <div class="stat"><span class="label">Pace</span><span class="pace-chip" id="paceChip">—</span></div>
+    </div>
+  </header>
+
+  <main class="grid">
+    <div class="col-main">
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Log a session</h2>
+          <span class="hint">Adds to today's ops log</span>
+        </div>
+        <div class="panel-body">
+          <form class="log-form" id="logForm">
+            <div>
+              <label for="fCategory">Category</label>
+              <select id="fCategory">
+                <option value="dsa">DSA / Coding</option>
+                <option value="sysdesign">System Design</option>
+                <option value="behavioral">Behavioral</option>
+                <option value="mock">Mock Interview (Hello Interview)</option>
+              </select>
+            </div>
+            <div>
+              <label for="fDifficulty">Difficulty</label>
+              <select id="fDifficulty">
+                <option value="easy">Easy</option>
+                <option value="medium" selected="selected">Medium</option>
+                <option value="hard">Hard</option>
+              </select>
+            </div>
+            <div>
+              <label for="fMinutes">Minutes</label>
+              <input type="number" id="fMinutes" min="5" max="240" step="5" value="30" />
+            </div>
+            <div class="field-note">
+              <label for="fNote">Note (optional)</label>
+              <input type="text" id="fNote" maxlength="80" placeholder="e.g. LRU cache + graph traversal set" />
+            </div>
+            <div class="log-actions">
+              <button type="submit" class="btn-primary">Log session</button>
+              <span class="scoring-key"><b>+10</b> easy · <b>+20</b> medium · <b>+35</b> hard · <b>+15</b> mock bonus · up to <b>+25</b> streak bonus</span>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Daily debrief</h2>
+          <span class="hint" id="todayDateLabel">—</span>
+        </div>
+        <div class="panel-body">
+          <div id="debriefMsg"></div>
+          <div id="todayEntries"></div>
+          <div id="historyList" class="history-list"></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Trajectory</h2>
+          <button class="table-toggle" id="toggleTableBtn" type="button">View as table</button>
+        </div>
+        <div class="panel-body">
+          <div class="chart-legend">
+            <span class="legend-item"><span class="legend-swatch you"></span>You</span>
+            <span class="legend-item"><span class="legend-swatch field"></span>Field average (9 peers)</span>
+          </div>
+          <div class="chart-wrap" id="chartWrap">
+            <svg id="chartSvg" viewBox="0 0 640 200" role="img" aria-label="Cumulative points over time, you versus field average"></svg>
+            <div class="chart-tooltip" id="chartTooltip"></div>
+          </div>
+          <div class="data-table-wrap" id="dataTableWrap" style="display:none;"></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Reps by category</h2>
+          <span class="hint">All-time points</span>
+        </div>
+        <div class="panel-body" id="gaugesBody"></div>
+      </section>
+
+    </div>
+
+    <aside class="col-side">
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Crew standings</h2>
+          <span class="hint">10 in the field</span>
+        </div>
+        <div class="panel-body">
+          <div id="leaderboardBody"></div>
+          <p class="lb-note">Same starting skillset as you — what separates the field is reps. Grinders log almost daily, casual peers skip often. Standings advance once per real calendar day.</p>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Roadmap</h2>
+          <span class="hint" id="roadmapWeeksHint">—</span>
+        </div>
+        <div class="panel-body" id="roadmapBody"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Why you're doing this</h2>
+        </div>
+        <div class="panel-body">
+          <p class="motivation-line" id="motivationLine"></p>
+          <p class="motivation-sub">Hello Interview supplies the reps — coding, system design, behavioral. This board's only job is making sure you actually show up for them, daily, for the next few months.</p>
+        </div>
+      </section>
+
+      <section class="panel panel-settings">
+        <div class="panel-header">
+          <h2>Settings</h2>
+        </div>
+        <div class="panel-body">
+          <div class="settings-row">
+            <span class="label" style="margin:0;">Target window</span>
+            <select class="weeks-select" id="weeksSelect">
+              <option value="12">12 weeks</option>
+              <option value="16">16 weeks</option>
+              <option value="20">20 weeks</option>
+            </select>
+          </div>
+          <div class="settings-row">
+            <span class="label" style="margin:0;">Start over</span>
+            <button class="btn-danger" id="resetBtn" type="button">Restart mission</button>
+          </div>
+        </div>
+      </section>
+
+    </aside>
+  </main>
+
+  <p class="footnote">Progress is stored locally in this browser only. Peer data is simulated — no accounts, no network calls.</p>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var STORAGE_KEY = "prephero_interview_prep_v1";
+
+  var PEER_DEFS = [
+    { id: "p1", name: "Priya Nair", tier: "GRINDER" },
+    { id: "p2", name: "Marcus Chen", tier: "GRINDER" },
+    { id: "p3", name: "Elena Ivanova", tier: "GRINDER" },
+    { id: "p4", name: "Diego Alvarez", tier: "STEADY" },
+    { id: "p5", name: "Aisha Rahman", tier: "STEADY" },
+    { id: "p6", name: "Noah Kim", tier: "STEADY" },
+    { id: "p7", name: "Wei Zhang", tier: "CASUAL" },
+    { id: "p8", name: "Sam Osei", tier: "CASUAL" },
+    { id: "p9", name: "Jordan Blake", tier: "CASUAL" }
+  ];
+
+  var TIER_CONFIG = {
+    GRINDER: { min: 22, max: 42, skip: 0.06, weekendMult: 1.0 },
+    STEADY: { min: 12, max: 26, skip: 0.22, weekendMult: 0.7 },
+    CASUAL: { min: 4, max: 14, skip: 0.40, weekendMult: 0.5 }
+  };
+
+  var DIFFICULTY_POINTS = { easy: 10, medium: 20, hard: 35 };
+  var DIFFICULTY_LABEL = { easy: "Easy", medium: "Medium", hard: "Hard" };
+  var CATEGORY_LABEL = { dsa: "DSA / Coding", sysdesign: "System Design", behavioral: "Behavioral", mock: "Mock Interview" };
+  var CATEGORY_ORDER = ["dsa", "sysdesign", "behavioral", "mock"];
+  var DAILY_TARGET_POINTS = 18;
+
+  var MILESTONE_DEFS = [
+    { id: "p1a", phase: 1, label: "Refresh core DSA patterns (arrays, strings, trees, graphs, DP)" },
+    { id: "p1b", phase: 1, label: "Hello Interview: daily medium-difficulty coding reps" },
+    { id: "p1c", phase: 1, label: "Start System Design fundamentals (scaling, data stores, APIs)" },
+    { id: "p1d", phase: 1, label: "Draft 5 STAR stories from recent projects" },
+    { id: "p2a", phase: 2, label: "Hello Interview system design bank, 2x/week" },
+    { id: "p2b", phase: 2, label: "Practice explaining designs out loud, not just on paper" },
+    { id: "p2c", phase: 2, label: "Mix in hard DSA problems, 2x/week" },
+    { id: "p2d", phase: 2, label: "Get fluent in trade-off framing (consistency, latency, cost)" },
+    { id: "p3a", phase: 3, label: "Weekly full mock interview (Hello Interview or peer)" },
+    { id: "p3b", phase: 3, label: "Timed 45-minute system design mocks" },
+    { id: "p3c", phase: 3, label: "Drill the weak areas your mocks keep surfacing" },
+    { id: "p3d", phase: 3, label: "Behavioral: tie every story to scope, ambiguity, and impact" },
+    { id: "p4a", phase: 4, label: "Company-specific prep for your target list" },
+    { id: "p4b", phase: 4, label: "Resume + LinkedIn pass, referrals lined up" },
+    { id: "p4c", phase: 4, label: "Applications out, interviews on the calendar" },
+    { id: "p4d", phase: 4, label: "Maintenance reps 2–3x/week, negotiate offers" }
+  ];
+  var PHASE_NAMES = { 1: "Foundations", 2: "System design depth", 3: "Mocks & behavioral", 4: "Polish & apply" };
+
+  var MOTIVATION_LINES = [
+    "You already know how to build things that work. This is just proving it under a clock.",
+    "Nobody remembers the day you skipped. They remember the offer.",
+    "Hello Interview gives you the reps. Showing up daily is the only part that's on you.",
+    "The senior bar isn't more LeetCode — it's clearer thinking, said out loud, under pressure.",
+    "Nine other people are grinding right now. Good. Let that be useful, not scary.",
+    "A mediocre rep today beats a perfect rep you never get to.",
+    "You're not behind. You're mid-mission. Log something and move the clock.",
+    "Every system design answer is a story: constraints, trade-offs, decision. Practice telling it.",
+    "Motivation shows up after you start, not before. Log one session and see."
+  ];
+
+  /* ---------- date helpers ---------- */
+  function pad(n) { return String(n).padStart(2, "0"); }
+  function fmtDate(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+  function todayStr() { return fmtDate(new Date()); }
+  function parseDate(s) { var parts = s.split("-").map(Number); return new Date(parts[0], parts[1] - 1, parts[2]); }
+  function addDays(s, n) { var d = parseDate(s); d.setDate(d.getDate() + n); return fmtDate(d); }
+  function daysBetween(a, b) { return Math.round((parseDate(b) - parseDate(a)) / 86400000); }
+  function isWeekendStr(s) { var d = parseDate(s).getDay(); return d === 0 || d === 6; }
+  function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+  function fmtDateHuman(s) {
+    var d = parseDate(s);
+    return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  }
+
+  /* ---------- state ---------- */
+  function defaultState() {
+    var today = todayStr();
+    return {
+      version: 1,
+      createdAt: today,
+      targetWeeks: 16,
+      user: { points: 0, streak: 0, longestStreak: 0, lastLogDate: null, history: [] },
+      peers: PEER_DEFS.map(function (p) { return { id: p.id, name: p.name, tier: p.tier, points: 0 }; }),
+      lastPeerSyncDate: null,
+      fieldHistory: [],
+      milestones: MILESTONE_DEFS.map(function (m) { return { id: m.id, done: false }; })
+    };
+  }
+
+  function loadState() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return defaultState();
+      var parsed = JSON.parse(raw);
+      if (!parsed || !parsed.user || !parsed.peers) return defaultState();
+      return parsed;
+    } catch (e) {
+      return defaultState();
+    }
+  }
+
+  function saveState(state) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+
+  /* ---------- peer simulation ---------- */
+  function syncPeers(state) {
+    var start = state.lastPeerSyncDate ? addDays(state.lastPeerSyncDate, 1) : state.createdAt;
+    var end = todayStr();
+    var deltas = {};
+    if (start > end) return deltas;
+    var cursor = start;
+    var guard = 0;
+    while (cursor <= end && guard < 500) {
+      var weekend = isWeekendStr(cursor);
+      state.peers.forEach(function (p) {
+        var cfg = TIER_CONFIG[p.tier];
+        var skipChance = cfg.skip + (weekend ? 0.10 : 0);
+        var skip = Math.random() < skipChance;
+        var gain = 0;
+        if (!skip) {
+          gain = randInt(cfg.min, cfg.max);
+          if (weekend) gain = Math.round(gain * cfg.weekendMult);
+          p.points += gain;
+        }
+        if (cursor === end) deltas[p.id] = { gain: gain, rest: skip };
+      });
+      var total = state.peers.reduce(function (s, p) { return s + p.points; }, 0);
+      var avg = Math.round(total / state.peers.length);
+      var idx = state.fieldHistory.findIndex(function (f) { return f.date === cursor; });
+      if (idx >= 0) state.fieldHistory[idx].avg = avg;
+      else state.fieldHistory.push({ date: cursor, avg: avg });
+      cursor = addDays(cursor, 1);
+      guard++;
+    }
+    state.lastPeerSyncDate = end;
+    return deltas;
+  }
+
+  /* ---------- ranking ---------- */
+  function computeStandings(state) {
+    var rows = [{ id: "you", name: "You", tier: null, points: state.user.points, isYou: true }];
+    state.peers.forEach(function (p) { rows.push({ id: p.id, name: p.name, tier: p.tier, points: p.points, isYou: false }); });
+    rows.sort(function (a, b) { return b.points - a.points; });
+    rows.forEach(function (r, i) { r.rank = i + 1; });
+    return rows;
+  }
+
+  /* ---------- logging ---------- */
+  function logEntry(state, category, difficulty, minutes, note) {
+    var date = todayStr();
+    var day = state.user.history.find(function (h) { return h.date === date; });
+    if (!day) { day = { date: date, points: 0, entries: [] }; state.user.history.push(day); }
+    var isFirstToday = day.entries.length === 0;
+    var base = DIFFICULTY_POINTS[difficulty];
+    var bonus = category === "mock" ? 15 : 0;
+    var pointsEarned = base + bonus;
+
+    if (isFirstToday) {
+      if (state.user.lastLogDate) {
+        var gap = daysBetween(state.user.lastLogDate, date);
+        if (gap === 1) state.user.streak += 1;
+        else if (gap > 1) state.user.streak = 1;
+      } else {
+        state.user.streak = 1;
+      }
+      state.user.longestStreak = Math.max(state.user.longestStreak, state.user.streak);
+      state.user.lastLogDate = date;
+      var streakBonus = Math.min(25, Math.floor(state.user.streak / 5) * 5);
+      pointsEarned += streakBonus;
+    }
+
+    day.entries.push({ category: category, difficulty: difficulty, minutes: minutes, note: note, points: pointsEarned });
+    day.points += pointsEarned;
+    state.user.points += pointsEarned;
+    day.rankThatDay = computeStandings(state).find(function (r) { return r.isYou; }).rank;
+    return pointsEarned;
+  }
+
+  /* ---------- render ---------- */
+  var state = loadState();
+  var todaysDeltas = {};
+
+  function paceStatus() {
+    var elapsedDays = Math.max(0, daysBetween(state.createdAt, todayStr()));
+    var expected = elapsedDays * DAILY_TARGET_POINTS;
+    if (expected <= 0) return { label: "STARTING", cls: "pace-good" };
+    var ratio = state.user.points / expected;
+    if (ratio >= 1) return { label: "ON PACE", cls: "pace-good" };
+    if (ratio >= 0.65) return { label: "SLIPPING", cls: "pace-warn" };
+    return { label: "BEHIND", cls: "pace-bad" };
+  }
+
+  function renderTopbar() {
+    var elapsedDays = Math.max(0, daysBetween(state.createdAt, todayStr()));
+    var totalDays = state.targetWeeks * 7;
+    var remaining = Math.max(0, totalDays - elapsedDays);
+    document.getElementById("clockValue").textContent = remaining + "d";
+    var week = Math.min(state.targetWeeks, Math.floor(elapsedDays / 7) + 1);
+    document.getElementById("weekValue").textContent = week + " / " + state.targetWeeks;
+    document.getElementById("streakValue").textContent = state.user.streak + (state.user.streak === 1 ? " day" : " days");
+    var standings = computeStandings(state);
+    var you = standings.find(function (r) { return r.isYou; });
+    document.getElementById("rankValue").textContent = "#" + you.rank + " / 10";
+    var pace = paceStatus();
+    var chip = document.getElementById("paceChip");
+    chip.textContent = pace.label;
+    chip.className = "pace-chip " + pace.cls;
+  }
+
+  function renderLeaderboard() {
+    var standings = computeStandings(state);
+    var maxPts = Math.max(1, standings[0].points);
+    var html = standings.map(function (r) {
+      var badge = "";
+      if (r.isYou) {
+        badge = "";
+      } else {
+        var d = todaysDeltas[r.id];
+        if (d) badge = d.rest ? '<span class="lb-badge rest">REST DAY</span>' : (d.gain > 0 ? '<span class="lb-badge up">+' + d.gain + ' today</span>' : "");
+      }
+      var pct = Math.max(3, Math.round((r.points / maxPts) * 100));
+      return (
+        '<div class="lb-row">' +
+          '<span class="lb-rank' + (r.isYou ? " you-rank" : "") + '">' + r.rank + "</span>" +
+          '<div class="lb-main">' +
+            '<div class="lb-name-line">' +
+              '<span class="lb-name' + (r.isYou ? " is-you" : "") + '">' + r.name + "</span>" +
+              (r.tier ? '<span class="lb-tier">' + r.tier + "</span>" : "") +
+              badge +
+            "</div>" +
+            '<div class="lb-bar-track"><div class="lb-bar-fill' + (r.isYou ? " you-fill" : "") + '" style="width:' + pct + '%;"></div></div>' +
+          "</div>" +
+          '<span class="lb-points">' + r.points + "</span>" +
+        "</div>"
+      );
+    }).join("");
+    document.getElementById("leaderboardBody").innerHTML = html;
+  }
+
+  function debriefMessage(todayDay) {
+    if (!todayDay || todayDay.entries.length === 0) {
+      return '<p class="today-empty">No reps logged yet today. Pick one thing from the roadmap and log it — that\'s the whole game.</p>';
+    }
+    var pts = todayDay.points;
+    var standings = computeStandings(state);
+    var you = standings.find(function (r) { return r.isYou; });
+    var idx = state.user.history.indexOf(todayDay);
+    var prevRank = idx > 0 ? state.user.history[idx - 1].rankThatDay : null;
+    var rankNote = "";
+    if (prevRank && you.rank < prevRank) rankNote = " You climbed to #" + you.rank + ".";
+    else if (prevRank && you.rank > prevRank) rankNote = " Field gained ground — you're #" + you.rank + " now.";
+    else rankNote = " Holding #" + you.rank + ".";
+    var lead;
+    if (pts >= 40) lead = "Big rep day — " + pts + " points logged.";
+    else if (pts >= 20) lead = "Solid session — " + pts + " points on the board.";
+    else lead = "Logged " + pts + " points. Keeps the streak alive.";
+    return '<div class="debrief-msg">' + lead + rankNote + "</div>";
+  }
+
+  function renderToday() {
+    document.getElementById("todayDateLabel").textContent = fmtDateHuman(todayStr());
+    var todayDay = state.user.history.find(function (h) { return h.date === todayStr(); });
+    document.getElementById("debriefMsg").innerHTML = debriefMessage(todayDay);
+
+    var entriesHtml = "";
+    if (todayDay && todayDay.entries.length) {
+      entriesHtml += todayDay.entries.map(function (e) {
+        return (
+          '<div class="entry-row">' +
+            '<div class="entry-cat">' + CATEGORY_LABEL[e.category] + (e.note ? '<div class="note">' + escapeHtml(e.note) + "</div>" : "") + "</div>" +
+            '<span class="entry-diff">' + DIFFICULTY_LABEL[e.difficulty] + "</span>" +
+            '<span class="entry-pts">+' + e.points + "</span>" +
+          "</div>"
+        );
+      }).join("");
+      entriesHtml += '<div class="today-total"><span>Today’s total</span><span>' + todayDay.points + " pts</span></div>";
+    }
+    document.getElementById("todayEntries").innerHTML = entriesHtml;
+
+    var pastDays = state.user.history.filter(function (h) { return h.date !== todayStr(); }).slice().reverse();
+    var histHtml = pastDays.map(function (h) {
+      var entries = h.entries.map(function (e) {
+        return (
+          '<div class="entry-row">' +
+            '<div class="entry-cat">' + CATEGORY_LABEL[e.category] + (e.note ? '<div class="note">' + escapeHtml(e.note) + "</div>" : "") + "</div>" +
+            '<span class="entry-diff">' + DIFFICULTY_LABEL[e.difficulty] + "</span>" +
+            '<span class="entry-pts">+' + e.points + "</span>" +
+          "</div>"
+        );
+      }).join("");
+      return (
+        '<details class="history-day">' +
+          "<summary><span class=\"hd-date\">" + fmtDateHuman(h.date) + "</span><span class=\"hd-meta\">" + h.points + " pts · rank #" + (h.rankThatDay || "—") + "</span></summary>" +
+          entries +
+        "</details>"
+      );
+    }).join("");
+    document.getElementById("historyList").innerHTML = histHtml;
+  }
+
+  function escapeHtml(s) {
+    var div = document.createElement("div");
+    div.textContent = s;
+    return div.innerHTML;
+  }
+
+  function buildSeries() {
+    var start = state.createdAt;
+    var end = todayStr();
+    var totalDays = daysBetween(start, end) + 1;
+    var range = [];
+    for (var i = 0; i < totalDays; i++) range.push(addDays(start, i));
+    if (range.length > 45) range = range.slice(range.length - 45);
+
+    var pointsByDate = {};
+    state.user.history.forEach(function (h) { pointsByDate[h.date] = h.points; });
+    var fieldByDate = {};
+    state.fieldHistory.forEach(function (f) { fieldByDate[f.date] = f.avg; });
+
+    var cum = 0;
+    var fullPointsByDate = {};
+    var allDates = [];
+    for (var d = start; d <= end; d = addDays(d, 1)) { allDates.push(d); }
+    allDates.forEach(function (d) {
+      cum += pointsByDate[d] || 0;
+      fullPointsByDate[d] = cum;
+    });
+
+    var you = range.map(function (d) { return fullPointsByDate[d] || 0; });
+    var field = range.map(function (d) { return fieldByDate[d] != null ? fieldByDate[d] : 0; });
+    return { dates: range, you: you, field: field };
+  }
+
+  function renderChart() {
+    var series = buildSeries();
+    var svg = document.getElementById("chartSvg");
+    var W = 640, H = 200, padL = 34, padR = 12, padT = 12, padB = 22;
+    var plotW = W - padL - padR, plotH = H - padT - padB;
+    var maxVal = Math.max(10, series.you[series.you.length - 1] || 0, series.field[series.field.length - 1] || 0);
+    series.you.concat(series.field).forEach(function (v) { if (v > maxVal) maxVal = v; });
+    maxVal = Math.ceil((maxVal * 1.15) / 10) * 10;
+    var n = series.dates.length;
+
+    function xAt(i) { return n <= 1 ? padL : padL + (i / (n - 1)) * plotW; }
+    function yAt(v) { return padT + plotH - (v / maxVal) * plotH; }
+
+    var gridLines = "";
+    var steps = 4;
+    for (var g = 0; g <= steps; g++) {
+      var val = Math.round((maxVal / steps) * g);
+      var y = yAt(val);
+      gridLines += '<line x1="' + padL + '" y1="' + y + '" x2="' + (W - padR) + '" y2="' + y + '" stroke="var(--grid-line)" stroke-width="1"></line>';
+      gridLines += '<text x="' + (padL - 6) + '" y="' + (y + 3) + '" text-anchor="end" font-size="9" fill="var(--text-muted)">' + val + "</text>";
+    }
+
+    var youPts = series.you.map(function (v, i) { return xAt(i) + "," + yAt(v); }).join(" ");
+    var fieldPts = series.field.map(function (v, i) { return xAt(i) + "," + yAt(v); }).join(" ");
+    var areaPts = youPts + " " + xAt(n - 1) + "," + yAt(0) + " " + xAt(0) + "," + yAt(0);
+
+    var lastYouY = yAt(series.you[n - 1] || 0);
+    var lastFieldY = yAt(series.field[n - 1] || 0);
+
+    svg.innerHTML =
+      '<defs><linearGradient id="areaFade" x1="0" y1="0" x2="0" y2="1">' +
+        '<stop offset="0%" stop-color="var(--accent)" stop-opacity="0.22"></stop>' +
+        '<stop offset="100%" stop-color="var(--accent)" stop-opacity="0"></stop>' +
+      "</linearGradient></defs>" +
+      gridLines +
+      '<polygon points="' + areaPts + '" fill="url(#areaFade)"></polygon>' +
+      '<polyline points="' + fieldPts + '" fill="none" stroke="var(--peer)" stroke-width="2" stroke-dasharray="4 4"></polyline>' +
+      '<polyline points="' + youPts + '" fill="none" stroke="var(--accent)" stroke-width="2.25"></polyline>' +
+      '<circle cx="' + xAt(n - 1) + '" cy="' + lastYouY + '" r="3" fill="var(--accent)"></circle>' +
+      '<circle cx="' + xAt(n - 1) + '" cy="' + lastFieldY + '" r="3" fill="var(--peer)"></circle>' +
+      '<rect id="hoverCatcher" x="' + padL + '" y="' + padT + '" width="' + plotW + '" height="' + plotH + '" fill="transparent"></rect>';
+
+    var tooltip = document.getElementById("chartTooltip");
+    var catcher = svg.querySelector("#hoverCatcher");
+    catcher.addEventListener("mousemove", function (ev) {
+      var rect = svg.getBoundingClientRect();
+      var relX = ((ev.clientX - rect.left) / rect.width) * W;
+      var i = Math.round(((relX - padL) / plotW) * (n - 1));
+      i = Math.max(0, Math.min(n - 1, i));
+      var px = (xAt(i) / W) * rect.width;
+      var py = (yAt(series.you[i]) / H) * rect.height;
+      tooltip.style.left = px + "px";
+      tooltip.style.top = Math.max(0, py - 54) + "px";
+      tooltip.innerHTML =
+        '<div class="tt-date">' + fmtDateHuman(series.dates[i]) + "</div>" +
+        '<div class="tt-you">You: ' + series.you[i] + " pts</div>" +
+        '<div class="tt-field">Field avg: ' + series.field[i] + " pts</div>";
+      tooltip.classList.add("visible");
+    });
+    catcher.addEventListener("mouseleave", function () { tooltip.classList.remove("visible"); });
+
+    var tableWrap = document.getElementById("dataTableWrap");
+    var rows = series.dates.map(function (d, i) {
+      return "<tr><td>" + fmtDateHuman(d) + "</td><td>" + series.you[i] + "</td><td>" + series.field[i] + "</td></tr>";
+    }).join("");
+    tableWrap.innerHTML =
+      '<table class="data-table"><thead><tr><th>Date</th><th>You</th><th>Field avg</th></tr></thead><tbody>' + rows + "</tbody></table>";
+  }
+
+  function renderGauges() {
+    var totals = {};
+    var counts = {};
+    CATEGORY_ORDER.forEach(function (c) { totals[c] = 0; counts[c] = 0; });
+    state.user.history.forEach(function (h) {
+      h.entries.forEach(function (e) { totals[e.category] += e.points; counts[e.category] += 1; });
+    });
+    var maxTotal = Math.max(1, Math.max.apply(null, CATEGORY_ORDER.map(function (c) { return totals[c]; })));
+    var html = CATEGORY_ORDER.map(function (c) {
+      var pct = Math.round((totals[c] / maxTotal) * 100);
+      return (
+        '<div class="gauge-row">' +
+          '<span class="gauge-label">' + CATEGORY_LABEL[c] + "</span>" +
+          '<div class="gauge-track"><div class="gauge-fill" style="width:' + pct + '%;"></div></div>' +
+          '<span class="gauge-meta">' + totals[c] + " pts · " + counts[c] + "x</span>" +
+        "</div>"
+      );
+    }).join("");
+    document.getElementById("gaugesBody").innerHTML = html;
+  }
+
+  function renderRoadmap() {
+    var elapsedDays = Math.max(0, daysBetween(state.createdAt, todayStr()));
+    var elapsedWeeks = elapsedDays / 7;
+    var q = state.targetWeeks / 4;
+    var currentPhase = Math.min(4, Math.floor(elapsedWeeks / q) + 1);
+    document.getElementById("roadmapWeeksHint").textContent = state.targetWeeks + "-week plan";
+
+    var doneMap = {};
+    state.milestones.forEach(function (m) { doneMap[m.id] = m.done; });
+
+    var html = "";
+    [1, 2, 3, 4].forEach(function (phase) {
+      var wkStart = Math.round((phase - 1) * q) + 1;
+      var wkEnd = Math.round(phase * q);
+      html += '<div class="phase-block">';
+      html += '<div class="phase-title">' + PHASE_NAMES[phase] + " · wk " + wkStart + "–" + wkEnd +
+        (phase === currentPhase ? '<span class="phase-current-chip">CURRENT</span>' : "") + "</div>";
+      MILESTONE_DEFS.filter(function (m) { return m.phase === phase; }).forEach(function (m) {
+        var checked = doneMap[m.id];
+        html += '<div class="milestone-item' + (checked ? " done" : "") + '">' +
+          '<input type="checkbox" id="ms-' + m.id + '" data-mid="' + m.id + '"' + (checked ? " checked=\"checked\"" : "") + " />" +
+          '<label for="ms-' + m.id + '">' + m.label + "</label>" +
+        "</div>";
+      });
+      html += "</div>";
+    });
+    document.getElementById("roadmapBody").innerHTML = html;
+
+    document.querySelectorAll("#roadmapBody input[type=checkbox]").forEach(function (cb) {
+      cb.addEventListener("change", function () {
+        var mid = cb.getAttribute("data-mid");
+        var m = state.milestones.find(function (x) { return x.id === mid; });
+        if (m) { m.done = cb.checked; saveState(state); }
+        cb.closest(".milestone-item").classList.toggle("done", cb.checked);
+      });
+    });
+  }
+
+  function renderMotivation() {
+    var s = state.createdAt + todayStr();
+    var hash = 0;
+    for (var i = 0; i < s.length; i++) hash = (hash * 31 + s.charCodeAt(i)) >>> 0;
+    var line = MOTIVATION_LINES[hash % MOTIVATION_LINES.length];
+    document.getElementById("motivationLine").textContent = line;
+  }
+
+  function renderSettings() {
+    document.getElementById("weeksSelect").value = String(state.targetWeeks);
+  }
+
+  function render() {
+    renderTopbar();
+    renderLeaderboard();
+    renderToday();
+    renderChart();
+    renderGauges();
+    renderRoadmap();
+    renderMotivation();
+    renderSettings();
+  }
+
+  /* ---------- events ---------- */
+  document.getElementById("logForm").addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    var category = document.getElementById("fCategory").value;
+    var difficulty = document.getElementById("fDifficulty").value;
+    var minutes = parseInt(document.getElementById("fMinutes").value, 10) || 30;
+    var note = document.getElementById("fNote").value.trim();
+    logEntry(state, category, difficulty, minutes, note);
+    saveState(state);
+    document.getElementById("fNote").value = "";
+    render();
+  });
+
+  document.getElementById("toggleTableBtn").addEventListener("click", function () {
+    var wrap = document.getElementById("dataTableWrap");
+    var chartWrap = document.getElementById("chartWrap");
+    var showing = wrap.style.display !== "none";
+    wrap.style.display = showing ? "none" : "block";
+    chartWrap.style.display = showing ? "block" : "none";
+    this.textContent = showing ? "View as table" : "View as chart";
+  });
+
+  document.getElementById("weeksSelect").addEventListener("change", function () {
+    state.targetWeeks = parseInt(this.value, 10);
+    saveState(state);
+    render();
+  });
+
+  var resetArmed = false;
+  var resetBtn = document.getElementById("resetBtn");
+  resetBtn.addEventListener("click", function () {
+    if (!resetArmed) {
+      resetArmed = true;
+      resetBtn.textContent = "Click again to confirm";
+      setTimeout(function () { resetArmed = false; resetBtn.textContent = "Restart mission"; }, 3000);
+      return;
+    }
+    state = defaultState();
+    todaysDeltas = syncPeers(state);
+    saveState(state);
+    resetArmed = false;
+    resetBtn.textContent = "Restart mission";
+    render();
+  });
+
+  /* ---------- init ---------- */
+  todaysDeltas = syncPeers(state);
+  saveState(state);
+  render();
+})();
+</script>
+</body>
+</html>

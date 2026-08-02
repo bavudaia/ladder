@@ -1,0 +1,6 @@
+# generated test artefacts
+tests/.build/
+
+# local tool + OS noise
+.claude/
+.DS_Store
