@@ -7,18 +7,18 @@
 
 import {
   json, passwordMatches, signSession, sessionCookie, sessionHours, clearedCookie, resolveSecret,
-  throttleState, recordFailure, clearFailures, clientIp, MAX_FAILURES, WINDOW_SECONDS
+  throttleState, recordFailure, clearFailures, clientIp, MAX_FAILURES
 } from "./_lib.js";
 
 export async function onRequestPost({ request, env }) {
   const appPassword = await resolveSecret(env, "APP_PASSWORD");
   if (!appPassword) {
-    return json({ error: { message: "This deployment has no APP_PASSWORD set, so password login is disabled." } }, 503);
+    return json({ error: { message: "Sign-in is unavailable." } }, 503);
   }
   /* Throttling needs somewhere to count. Refuse rather than run an
      unthrottled password endpoint on the open internet. */
   if (!env.PREPHERO) {
-    return json({ error: { message: "No KV namespace bound as PREPHERO; login is disabled without it." } }, 503);
+    return json({ error: { message: "Sign-in is unavailable." } }, 503);
   }
 
   const ip = clientIp(request);
@@ -35,9 +35,7 @@ export async function onRequestPost({ request, env }) {
 
   if (!(await passwordMatches(given, appPassword))) {
     await recordFailure(env, ip);
-    const left = Math.max(0, MAX_FAILURES - ((state ? state.failures : 0) + 1));
-    return json({ error: { message: "Wrong password." }, attemptsLeft: left }, 401,
-      { "set-cookie": clearedCookie() });
+    return json({ error: { message: "Wrong password." } }, 401, { "set-cookie": clearedCookie() });
   }
 
   await clearFailures(env, ip);

@@ -44,18 +44,17 @@ function fetch(url, opts){
 
   if (url === "/api/me") {
     /* answers signed in or not — that is how the app knows to show a prompt */
-    return __res(200, { hosted:true, authed:globalThis.__signedIn,
-      email: globalThis.__signedIn ? "owner" : null,
-      configured: globalThis.__configured, authMethod: globalThis.__configured ? "password" : "none",
-      hasServerKey:true, sync:true });
+    if (!globalThis.__signedIn) return __res(200, { hosted:true, authed:false });
+    return __res(200, { hosted:true, authed:true, email:"owner",
+      configured: globalThis.__configured, authMethod:"password", hasServerKey:true, sync:true });
   }
   if (url === "/api/login") {
-    if (!globalThis.__configured) return __res(503, { error:{message:"This deployment has no APP_PASSWORD set, so password login is disabled."} });
+    if (!globalThis.__configured) return __res(503, { error:{message:"Sign-in is unavailable."} });
     if (globalThis.__lockedOut) return __res(429, { error:{message:"Too many failed attempts. Try again later."} });
     if (body && body.password === globalThis.__password) { globalThis.__signedIn = true; globalThis.__failures = 0; return __res(200, { ok:true, hours:24 }); }
     globalThis.__failures++;
     if (globalThis.__failures >= 8) globalThis.__lockedOut = true;
-    return __res(401, { error:{message:"Wrong password."}, attemptsLeft: Math.max(0, 8 - globalThis.__failures) });
+    return __res(401, { error:{message:"Wrong password."} });
   }
   if (url === "/api/logout") { globalThis.__signedIn = false; return __res(200, { ok:true }); }
 
@@ -80,17 +79,26 @@ ok(T.SYNC.hosted === true, "hosted deployment detected even while signed out");
 ok(T.SYNC.authed === false, "and it knows we are not signed in");
 ok(T.state === null, "no season is loaded");
 ok(__el("appShell")._c.hidden === 1, "the app shell is hidden");
-ok(__el("authTitle").textContent === "Unlock", "the prompt says Unlock, got " + __el("authTitle").textContent);
+ok(__el("authTitle").textContent === "Sign in", "the prompt says Sign in, got " + __el("authTitle").textContent);
 ok(__el("authUserWrap")._c.hidden === 1, "no profile-name field — there is one deployment password");
 ok(__el("authConfirmWrap")._c.hidden === 1, "and no signup confirm field");
 ok(__el("authSwitch")._c.hidden === 1, "no 'create another profile' link");
-ok(__el("authLede").textContent.indexOf("password protected") >= 0, "it explains the deployment is protected");
+
+print("-- and it tells a stranger nothing --");
+var screen = __el("authTitle").textContent + " " + __el("authLede").textContent + " " + __el("authFoot").textContent;
+ok(screen.toLowerCase().indexOf("api key") < 0, "does not mention an API key: " + screen);
+ok(screen.toLowerCase().indexOf("server") < 0, "does not say anything is held on a server");
+ok(screen.toLowerCase().indexOf("anthropic") < 0, "does not name the upstream provider");
+ok(screen.toLowerCase().indexOf("app_password") < 0, "does not name the deployment variable");
+ok(screen.toLowerCase().indexOf("season") < 0, "does not describe what is behind it");
+ok(T.SYNC.serverKey === false && T.SYNC.kv === false,
+   "the probe told us nothing about the key or the store while signed out");
 
 print("-- a wrong password is refused and changes nothing --");
 __el("authPass").value = "not-the-password";
 T.submitAuth(); settle();
 ok(__el("authErr").textContent.indexOf("Wrong password") >= 0, "the error is shown, got " + __el("authErr").textContent);
-ok(__el("authErr").textContent.indexOf("attempts left") >= 0, "with the attempts remaining: " + __el("authErr").textContent);
+ok(__el("authErr").textContent.indexOf("attempt") < 0, "and no countdown to the lockout: " + __el("authErr").textContent);
 ok(T.state === null, "still no season");
 ok(T.SYNC.authed === false, "still signed out");
 
@@ -106,6 +114,7 @@ ok(T.getKey() === "", "but this browser still holds no key");
 ok(__el("whoName").textContent === "owner", "identity comes from the session");
 ok(__el("lockBtn")._c.hidden === undefined, "a Sign out button is offered");
 ok(__el("lockBtn").textContent === "Sign out", "labelled for a session, not a local lock");
+ok(T.SYNC.serverKey === true && T.SYNC.kv === true, "once in, the app learns what the deployment can do");
 
 print("-- the password is never persisted --");
 ok(JSON.stringify(__store).indexOf(globalThis.__password) < 0, "not in localStorage");
@@ -116,7 +125,7 @@ T.lockApp(); settle();
 ok(globalThis.__signedIn === false, "the server was told to end the session");
 ok(T.state === null, "the season is unloaded");
 ok(T.SYNC.authed === false, "and the app knows it");
-ok(__el("authTitle").textContent === "Unlock", "back to the prompt");
+ok(__el("authTitle").textContent === "Sign in", "back to the prompt");
 ok(__el("appShell")._c.hidden === 1, "app hidden again");
 
 print("-- a session that expires mid-use returns you to the prompt --");
@@ -151,17 +160,18 @@ done();
 UNCONFIGURED = HEAD_RAW + r"""
 settle();
 
-print("-- a deployment with no password configured --");
+print("-- a misconfigured deployment looks the same from outside --");
 ok(T.SYNC.hosted === true, "still detected as hosted");
-ok(T.SYNC.configured === false, "but reports itself unconfigured");
 ok(T.state === null, "nothing boots");
-ok(__el("authLede").textContent.indexOf("APP_PASSWORD") >= 0,
-   "the screen names the variable to set, got " + __el("authLede").textContent);
-ok(__el("authSubmit").disabled === true, "and there is nothing to submit");
-var before = globalThis.__calls.length;
+ok(__el("authTitle").textContent === "Sign in", "same prompt as a working deployment");
+ok(__el("authLede").textContent === "Enter your password to continue.", "same wording, got " + __el("authLede").textContent);
+ok(__el("authLede").textContent.indexOf("APP_PASSWORD") < 0, "the variable is not named to a stranger");
+ok(__el("authSubmit").disabled === false, "the button is not disabled, which would itself be a tell");
 __el("authPass").value = "anything";
 T.submitAuth(); settle();
 ok(T.state === null, "submitting cannot get in");
+ok(__el("authErr").textContent === "Sign-in is unavailable.",
+   "and the failure is generic, got " + __el("authErr").textContent);
 done();
 """
 

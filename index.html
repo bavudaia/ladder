@@ -1684,9 +1684,6 @@
     if (!res.ok) {
       var msg = (body && body.error && body.error.message) || "Login failed (" + res.status + ").";
       if (res.status === 429) msg = "Too many failed attempts. Wait a few minutes and try again.";
-      else if (body && typeof body.attemptsLeft === "number") {
-        msg += " " + body.attemptsLeft + " attempt" + (body.attemptsLeft === 1 ? "" : "s") + " left before a lockout.";
-      }
       throw new Error(msg);
     }
     await probeHost();
@@ -4253,21 +4250,23 @@
     var names = accountNames();
     var signup = authMode === "signup";
 
-    /* Hosted with a password: one field, no profiles, no local encryption —
-       the key is the server's and the session is a cookie. */
+    /* Hosted with a password: one field and nothing else.
+       This screen is reachable by anyone who finds the URL, so it describes
+       neither what is behind it nor how the deployment is configured. A
+       stranger should not learn there is a server-held API key here, and a
+       misconfiguration should not be announced to them either — the owner
+       diagnoses that from DEPLOY.md, not from a public page. */
     if (authMode === "hosted") {
       $("authForm").classList.remove("hidden");
-      $("authTitle").textContent = "Unlock";
-      $("authLede").textContent = SYNC.configured
-        ? "This deployment is password protected. Your season and API key live on the server, not in this browser."
-        : "This deployment has no password set. Add APP_PASSWORD in the Pages settings, then redeploy.";
+      $("authTitle").textContent = "Sign in";
+      $("authLede").textContent = "Enter your password to continue.";
       $("authUserWrap").classList.add("hidden");
       $("authConfirmWrap").classList.add("hidden");
-      $("authSubmit").textContent = "Unlock";
-      $("authSubmit").disabled = !SYNC.configured;
+      $("authSubmit").textContent = "Sign in";
+      $("authSubmit").disabled = false;
       $("authPass").setAttribute("autocomplete", "current-password");
       $("authSwitch").classList.add("hidden");
-      $("authFoot").textContent = "Sessions expire, and changing the deployment password signs out every device.";
+      $("authFoot").textContent = "";
       return;
     }
 
@@ -4311,7 +4310,7 @@
     if (authMode === "hosted") {
       authBusy = true;
       $("authSubmit").disabled = true;
-      $("authSubmit").textContent = "Unlocking...";
+      $("authSubmit").textContent = "Signing in...";
       try {
         await hostedLogin($("authPass").value);
         $("authPass").value = "";
@@ -4324,7 +4323,7 @@
       } finally {
         authBusy = false;
         $("authSubmit").disabled = false;
-        $("authSubmit").textContent = "Unlock";
+        $("authSubmit").textContent = "Sign in";
       }
     }
 

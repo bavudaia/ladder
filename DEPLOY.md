@@ -44,7 +44,7 @@ Git integration needs nothing installed locally, so use that.
 
 Save and deploy. You get `https://<project>.pages.dev`.
 
-Check it worked: open `https://<project>.pages.dev/api/me`. You want JSON with `"hosted": true` and `"configured": false` — the Functions built and are refusing to do anything until you set a password. A **404** means Functions did not build, and you are back on the drag-and-drop path.
+Check it worked: open `https://<project>.pages.dev/api/me`. You want `{"hosted": true, "authed": false}` — the Functions built. That signed-out reply is deliberately bare: it is a public endpoint, so it reveals nothing about what the deployment holds or whether it is configured. The full picture appears in the same response once you are signed in. A **404** means Functions did not build, and you are back on the drag-and-drop path.
 
 > Never drag the project folder into an uploader. It includes `.git/`, which would publish your entire repository history at your site's URL, and `tests/.build/`, which is megabytes of generated junk. Git integration avoids both — `.gitignore` already excludes them.
 
@@ -130,7 +130,7 @@ Sessions last 24 hours by default. Changing `APP_PASSWORD` signs out every devic
 | Symptom | Cause |
 | --- | --- |
 | Lock screen asking you to **create a profile** | The app did not detect hosted mode — `/api/me` is not answering. Functions did not build, or you are opening the file locally. |
-| Prompt says **no password set** | `APP_PASSWORD` is missing, or you have not redeployed since adding it. |
+| Sign-in says **unavailable** | `APP_PASSWORD` or the `PREPHERO` binding is missing, or you have not redeployed since adding them. The page stays deliberately vague about which — it is public. Check `/api/me` while signed in, or the Pages settings. |
 | **Too many failed attempts** | The throttle tripped: 8 wrong passwords from one IP. It clears after 15 minutes. |
 | Chip says **No sync store** | The `PREPHERO` KV binding is missing or misnamed. |
 | Sessions still say *Offline bank* | `ANTHROPIC_API_KEY` is not set, or was added as plaintext to the wrong environment. |
