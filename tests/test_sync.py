@@ -13,7 +13,8 @@ from harness import HEAD_RAW, dom, run, report
 HOSTED_FETCH = r"""
 globalThis.__remote = null;          /* what the "KV" holds */
 globalThis.__calls = [];
-globalThis.__me = { hosted:true, email:"me@example.com", hasServerKey:true, sync:true };
+globalThis.__me = { hosted:true, authed:true, email:"me@example.com", hasServerKey:true,
+                    sync:true, configured:true, authMethod:"access" };
 globalThis.__stateStatus = 200;      /* force 409 / 500 for specific tests */
 
 function __res(status, obj){
@@ -282,10 +283,10 @@ function MKSEASON(items, updated, rev){
 
 def main():
     hosted = dom(speech_support=True).replace("function TextDecoder", HOSTED_FETCH + "\nfunction TextDecoder")
+    # same stub, but the deployment answers nothing: a plain static host
     offline = dom(speech_support=True).replace(
         "function TextDecoder",
-        HOSTED_FETCH.replace('globalThis.__me = { hosted:true, email:"me@example.com", hasServerKey:true, sync:true };',
-                             "globalThis.__me = null;") + "\nfunction TextDecoder")
+        HOSTED_FETCH + "\nglobalThis.__me = null;\nfunction TextDecoder")
     fx = js_fixtures()
     return {
         "sync":     run("sync", hosted, SYNC),

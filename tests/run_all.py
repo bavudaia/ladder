@@ -13,6 +13,8 @@ import test_api
 import test_auth
 import test_commands
 import test_images
+import test_password
+import test_server
 import test_sessions
 import test_sync
 from harness import report
@@ -26,6 +28,8 @@ def main():
     results.update(test_commands.main())
     results.update(test_images.main())
     results.update(test_sync.main())
+    results.update(test_password.main())
+    results.update(test_server.main())
     return report(results)
 
 

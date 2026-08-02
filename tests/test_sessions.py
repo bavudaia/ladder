@@ -28,7 +28,8 @@ print("-- season state --");
    this runs. Assert the branch that actually applies today. */
 var TODAY = new Date().toISOString().slice(0,10);
 var PRESEASON = TODAY < "2026-08-01";
-ok(T.state.createdAt === "2026-08-01", "season starts on the epoch date, got " + T.state.createdAt);
+ok(T.state.createdAt === (PRESEASON ? "2026-08-01" : TODAY),
+   "a season opens on the epoch date, or today once that has passed, got " + T.state.createdAt);
 ok(T.state.user.points === 0 && T.state.user.history.length === 0, "progress is empty");
 if (PRESEASON) {
   ok(__el("statDay").textContent.indexOf("T-") === 0, "day stat counts down, got " + __el("statDay").textContent);
@@ -263,7 +264,9 @@ done();
 SEASON = HEAD + r"""
 print("-- stale season is re-armed for the epoch date --");
 ok(T.state.epoch === "2026-08-01#2", "state carries the new season id, got " + T.state.epoch);
-ok(T.state.createdAt === "2026-08-01", "season re-opens on the epoch date, got " + T.state.createdAt);
+var TODAY2 = new Date().toISOString().slice(0,10);
+ok(T.state.createdAt === (TODAY2 < "2026-08-01" ? "2026-08-01" : TODAY2),
+   "a re-armed season opens on the epoch date, or today once that has passed, got " + T.state.createdAt);
 ok(T.state.user.points === 0, "points wiped, got " + T.state.user.points);
 ok(T.state.user.history.length === 0, "log wiped");
 ok(T.state.user.streak === 0 && T.state.user.longestStreak === 0, "streak wiped");

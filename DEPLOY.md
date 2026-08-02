@@ -8,12 +8,12 @@ This takes about fifteen minutes and costs nothing — everything below is insid
 
 | | |
 | --- | --- |
-| **Who can open it** | Only email addresses you list. Cloudflare Access checks before the page is ever served. |
+| **Who can open it** | Anyone with the password. The API refuses every request without a valid session. |
 | **Where the key lives** | A deployment secret. It is never sent to a browser — sessions call your own `/api/claude`, which adds the key server-side. |
-| **Where progress lives** | Cloudflare KV, keyed by your email. Every device pulls it on load and pushes as you practise. |
-| **Login** | Your email plus a one-time code Cloudflare mails you. No password for you to manage or lose. |
+| **Where progress lives** | Cloudflare KV, keyed by your identity. Every device pulls it on load and pushes as you practise. |
+| **Login** | A password you set as a deployment secret, exchanged for an HttpOnly session cookie. Upgradeable to Cloudflare Access later without code changes. |
 
-The in-app profile lock screen disappears in this mode — Access has already proved who you are, so a second password would be theatre.
+In this mode the app's lock screen becomes a single password prompt: no local profiles, no per-device key, because the server holds both.
 
 ## Before you start
 
@@ -44,7 +44,7 @@ Git integration needs nothing installed locally, so use that.
 
 Save and deploy. You get `https://<project>.pages.dev`.
 
-Check it worked: open `https://<project>.pages.dev/api/me`. A **503 saying the deployment is not protected** is the correct answer at this stage — the API fails closed until Access is configured. A **404** means Functions did not build, and you are back on the drag-and-drop path.
+Check it worked: open `https://<project>.pages.dev/api/me`. You want JSON with `"hosted": true` and `"configured": false` — the Functions built and are refusing to do anything until you set a password. A **404** means Functions did not build, and you are back on the drag-and-drop path.
 
 > Never drag the project folder into an uploader. It includes `.git/`, which would publish your entire repository history at your site's URL, and `tests/.build/`, which is megabytes of generated junk. Git integration avoids both — `.gitignore` already excludes them.
 
@@ -70,44 +70,47 @@ The variable name must be exactly `PREPHERO` — that is what `functions/api/sta
 
 Add it for **Production** (and Preview too, if you plan to use preview URLs).
 
-## 4. Put Access in front of it
+## 4. Set your password
 
-**Zero Trust → Access → Applications → Add an application → Self-hosted.**
-
-- **Application name:** PrepHero
-- **Session duration:** whatever you like — 1 month means you rarely re-authenticate
-- **Domain:** `prephero.pages.dev` (your hostname, no path)
-
-Then add a policy:
-
-- **Name:** Me
-- **Action:** Allow
-- **Include:** *Emails* → your email address
-
-Leave the login method as **One-time PIN**. Cloudflare emails you a code; there is no password anywhere in this system.
-
-## 5. Tell the Functions about Access
-
-This is the step that is easy to skip and important not to. The middleware verifies Access's signature on every API call, and it needs two values to do that.
-
-From **Zero Trust → Settings → Custom Pages** (or the team domain shown in the top-left of Zero Trust) get your team domain, e.g. `yourteam.cloudflareaccess.com`.
-
-From the Access application you just made → **Overview**, copy the **Application Audience (AUD) Tag**.
-
-Back in **Pages → Settings → Variables and Secrets**, add both as plaintext variables:
+**Settings → Variables and Secrets → Add**, type **Secret**:
 
 | Name | Value |
 | --- | --- |
-| `ACCESS_TEAM_DOMAIN` | `yourteam.cloudflareaccess.com` |
-| `ACCESS_AUD` | the AUD tag |
+| `APP_PASSWORD` | a generated 24+ character password |
 
-**Redeploy** after adding variables — Pages only picks them up on a new deployment. (*Deployments → ⋯ → Retry deployment* is enough.)
+Generate it with a password manager. Do not pick something memorable — this one
+secret is the entire gate in front of your API key. Optionally add
+`SESSION_HOURS` (plaintext, default 24) to control how often you sign in again.
 
-## 6. Use it
+**Redeploy** after adding variables — Pages only picks them up on a new
+deployment. *Deployments → ⋯ → Retry deployment.*
 
-Open `https://prephero.pages.dev` on any device. Cloudflare asks for your email, mails you a code, and then the app loads straight into the dashboard — no lock screen, your email in the top-right, and a **Synced** chip next to it.
+### Why a password and not Cloudflare Access
 
-Do a session on your laptop, open your phone, and the points are there.
+Access is the stronger option and this app still supports it: set
+`ACCESS_TEAM_DOMAIN` and `ACCESS_AUD` and the middleware prefers it
+automatically, no code change. It is enforced at Cloudflare's edge, so an
+unauthenticated request never reaches your code, and there is no password to
+guess. It needs Zero Trust, which asks for a card on file even on the free plan.
+
+The password path is weaker in ways worth knowing:
+
+- The login endpoint is publicly reachable, so password strength is the security.
+- Correctness is this repo's code — HMAC-signed cookie, constant-time compare,
+  KV-backed throttling of 8 failed attempts per IP per 15 minutes — rather than
+  Cloudflare's.
+- There is no second factor.
+
+Set a **spend limit on your Anthropic key** either way. That is the backstop
+that bounds the worst case no matter which gate you use.
+
+## 5. Use it
+
+Open `https://<project>.pages.dev` on any device. You get a single **Unlock** prompt: enter the password, and the app loads with a **Synced** chip in the top-right and a **Sign out** button beside it.
+
+Do a session on your laptop, open your phone, enter the same password, and the points are there.
+
+Sessions last 24 hours by default. Changing `APP_PASSWORD` signs out every device immediately — the cookie signing key is derived from it, so rotating the password is also the panic button.
 
 ---
 
@@ -115,11 +118,13 @@ Do a session on your laptop, open your phone, and the points are there.
 
 | Symptom | Cause |
 | --- | --- |
-| Lock screen asking you to create a profile | The app did not detect hosted mode: `/api/me` is not returning 200. Usually the variables are missing or you have not redeployed since adding them. |
+| Lock screen asking you to **create a profile** | The app did not detect hosted mode — `/api/me` is not answering. Functions did not build, or you are opening the file locally. |
+| Prompt says **no password set** | `APP_PASSWORD` is missing, or you have not redeployed since adding it. |
+| **Too many failed attempts** | The throttle tripped: 8 wrong passwords from one IP. It clears after 15 minutes. |
 | Chip says **No sync store** | The `PREPHERO` KV binding is missing or misnamed. |
 | Sessions still say *Offline bank* | `ANTHROPIC_API_KEY` is not set, or was added as plaintext to the wrong environment. |
-| Chip says **Sync failed** | Hover it for the error. A 503 means the KV binding; a 403 means the Access AUD does not match the application. |
-| Everyone can open the URL | The Access application's domain does not match your hostname. The API still refuses to work, so your key is safe, but fix the policy. |
+| Chip says **Sync failed** | Hover it for the error. A 503 means the KV binding is missing; a 401 means your session expired — sign in again. |
+| Signed out unexpectedly | The session expired, or `APP_PASSWORD` changed. Both are by design. |
 
 Anthropic's own **spend limit** on the key is the backstop for all of this. Set one.
 
@@ -135,4 +140,4 @@ The server also refuses a write that is older than what it holds; the client mer
 
 ## Running it locally afterwards
 
-Nothing about this breaks local use. Open `index.html` directly, or serve it with `python3 -m http.server 8000`, and the app finds no `/api/me`, falls back to the profile lock screen, and uses a key you paste into Settings. Same file, both modes.
+Nothing about this breaks local use. Open `index.html` directly, or serve it with `python3 -m http.server 8000`, and the app finds no `/api/me`, falls back to the profile lock screen, and uses a key you paste into Settings. Same file, both modes — and the local profiles are encrypted per device, independent of the deployment password.

@@ -457,8 +457,10 @@
     <h2 id="authTitle">Unlock</h2>
     <p class="lock-lede" id="authLede"></p>
     <form id="authForm" autocomplete="off">
-      <label class="label" for="authUser">Profile name</label>
-      <input type="text" id="authUser" autocomplete="username" spellcheck="false" placeholder="you" />
+      <div id="authUserWrap">
+        <label class="label" for="authUser">Profile name</label>
+        <input type="text" id="authUser" autocomplete="username" spellcheck="false" placeholder="you" />
+      </div>
       <label class="label" for="authPass">Password</label>
       <input type="password" id="authPass" autocomplete="current-password" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;" />
       <div id="authConfirmWrap" class="hidden">
@@ -1647,8 +1649,8 @@
                shares one ladder.
      ============================================================ */
 
-  var SYNC = { hosted: false, email: null, serverKey: false, kv: false,
-    status: "local", error: null, pushing: false, lastPush: null };
+  var SYNC = { hosted: false, authed: false, email: null, serverKey: false, kv: false,
+    configured: false, authMethod: "none", status: "local", error: null, pushing: false, lastPush: null };
   var pushTimer = null;
 
   async function probeHost() {
@@ -1658,12 +1660,43 @@
       var me = await res.json();
       if (!me || !me.hosted) return false;
       SYNC.hosted = true;
+      SYNC.authed = !!me.authed;
       SYNC.email = me.email || "";
       SYNC.serverKey = !!me.hasServerKey;
       SYNC.kv = !!me.sync;
+      SYNC.configured = !!me.configured;
+      SYNC.authMethod = me.authMethod || "none";
       SYNC.status = SYNC.kv ? "idle" : "nosync";
       return true;
     } catch (e) { return false; }
+  }
+
+  /* Password deployments (no Cloudflare Access): the lock screen becomes a
+     single password prompt, and the session is an HttpOnly cookie the browser
+     never lets this script read. */
+  async function hostedLogin(password) {
+    var res = await fetch("/api/login", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ password: String(password || "") })
+    });
+    var body = null;
+    try { body = await res.json(); } catch (e) { /* ignore */ }
+    if (!res.ok) {
+      var msg = (body && body.error && body.error.message) || "Login failed (" + res.status + ").";
+      if (res.status === 429) msg = "Too many failed attempts. Wait a few minutes and try again.";
+      else if (body && typeof body.attemptsLeft === "number") {
+        msg += " " + body.attemptsLeft + " attempt" + (body.attemptsLeft === 1 ? "" : "s") + " left before a lockout.";
+      }
+      throw new Error(msg);
+    }
+    await probeHost();
+    return true;
+  }
+
+  async function hostedLogout() {
+    try { await fetch("/api/logout", { method: "POST" }); } catch (e) { /* offline: cookie expires anyway */ }
+    SYNC.authed = false;
+    SYNC.email = null;
   }
 
   function entryKey(e) { return String(e.at || "") + "|" + String(e.activityId || ""); }
@@ -1767,6 +1800,12 @@
           SYNC.lastPush = new Date().toISOString();
           renderSyncChip();
           return true;
+        }
+        if (res.status === 401) {
+          /* the session expired while the tab was open */
+          SYNC.authed = false;
+          showHostedAuth();
+          return false;
         }
         if (res.status === 409) {
           /* another device moved first: merge its season in and try once more */
@@ -2030,6 +2069,11 @@
         var errJson = JSON.parse(await res.text());
         detail = (errJson.error && errJson.error.message) || "";
       } catch (e) { /* ignore */ }
+      if (res.status === 401 && proxy) {
+        SYNC.authed = false;
+        showHostedAuth();
+        throw new ApiError("Your session expired. Sign in again.", "auth");
+      }
       if (res.status === 401) throw new ApiError("The API key was rejected (401). Check it in Settings.", "auth");
       if (res.status === 429) throw new ApiError("Rate limited by the API (429). Wait a moment and retry.", "rate");
       throw new ApiError("API error " + res.status + (detail ? ": " + detail : ""), "api");
@@ -4209,6 +4253,25 @@
     var names = accountNames();
     var signup = authMode === "signup";
 
+    /* Hosted with a password: one field, no profiles, no local encryption —
+       the key is the server's and the session is a cookie. */
+    if (authMode === "hosted") {
+      $("authForm").classList.remove("hidden");
+      $("authTitle").textContent = "Unlock";
+      $("authLede").textContent = SYNC.configured
+        ? "This deployment is password protected. Your season and API key live on the server, not in this browser."
+        : "This deployment has no password set. Add APP_PASSWORD in the Pages settings, then redeploy.";
+      $("authUserWrap").classList.add("hidden");
+      $("authConfirmWrap").classList.add("hidden");
+      $("authSubmit").textContent = "Unlock";
+      $("authSubmit").disabled = !SYNC.configured;
+      $("authPass").setAttribute("autocomplete", "current-password");
+      $("authSwitch").classList.add("hidden");
+      $("authFoot").textContent = "Sessions expire, and changing the deployment password signs out every device.";
+      return;
+    }
+
+    $("authUserWrap").classList.remove("hidden");
     if (!subtle) {
       $("authTitle").textContent = "Insecure origin";
       $("authLede").textContent = cryptoBlockedReason();
@@ -4243,7 +4306,29 @@
   }
 
   async function submitAuth() {
-    if (authBusy || !subtle) return false;
+    if (authBusy) return false;
+
+    if (authMode === "hosted") {
+      authBusy = true;
+      $("authSubmit").disabled = true;
+      $("authSubmit").textContent = "Unlocking...";
+      try {
+        await hostedLogin($("authPass").value);
+        $("authPass").value = "";
+        $("authErr").textContent = "";
+        await bootHosted();
+        return true;
+      } catch (e) {
+        $("authErr").textContent = e.message || String(e);
+        return false;
+      } finally {
+        authBusy = false;
+        $("authSubmit").disabled = false;
+        $("authSubmit").textContent = "Unlock";
+      }
+    }
+
+    if (!subtle) return false;
     var name = $("authUser").value;
     var pass = $("authPass").value;
     var signup = authMode === "signup";
@@ -4272,12 +4357,22 @@
     }
   }
 
-  function lockApp() {
+  function showHostedAuth() {
+    authMode = "hosted";
+    $("appShell").classList.add("hidden");
+    $("authView").classList.remove("hidden");
+    renderAuth();
+    $("authErr").textContent = "";
+  }
+
+  async function lockApp() {
     resetSpeech();
+    var wasHosted = SYNC.hosted;
+    if (wasHosted) await hostedLogout();
     auth = { user: null, cryptoKey: null, apiKey: "" };
     state = null;
     $("authPass").value = "";
-    showAuth();
+    if (wasHosted) showHostedAuth(); else showAuth();
   }
 
   /* Hosted: Access already proved who you are, so there is no lock screen.
@@ -4303,7 +4398,9 @@
     saveState();
     $("authView").classList.add("hidden");
     $("appShell").classList.remove("hidden");
-    $("lockBtn").classList.toggle("hidden", SYNC.hosted);
+    /* Access owns the session; a password session is ours to end. */
+    $("lockBtn").classList.toggle("hidden", SYNC.hosted && SYNC.authMethod === "access");
+    $("lockBtn").textContent = SYNC.hosted ? "Sign out" : "Lock";
     $("whoName").textContent = auth.user || "";
     renderSyncChip();
     showDashboard();
@@ -4587,8 +4684,9 @@
   (async function boot() {
     var hosted = await probeHost();
     if (auth.user || state) return;   /* already booted (tests, or a fast unlock) */
-    if (hosted) await bootHosted();
-    else showAuth();
+    if (!hosted) { showAuth(); return; }
+    if (SYNC.authed) await bootHosted();
+    else showHostedAuth();            /* password deployment, not signed in yet */
   })();
 })();
 </script>

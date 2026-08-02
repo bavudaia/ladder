@@ -102,7 +102,7 @@ The app asks the deployment who you are on load, and behaves accordingly.
 
 **Hosted** — deployed to Cloudflare Pages behind Access, with the `functions/` in this repo. Then:
 
-- **Access is the login.** Cloudflare checks your email before the page is served, with a one-time code. No password for you to manage, and no lock screen inside the app — a second password behind a real one is theatre.
+- **One password guards it.** You set `APP_PASSWORD` as a deployment secret; the app trades it for an HttpOnly session cookie signed with a key derived from that password. Cloudflare Access is supported too and preferred when configured (`ACCESS_TEAM_DOMAIN` + `ACCESS_AUD`) — it is the stronger gate, but it needs Zero Trust, which wants a card on file even on the free plan.
 - **The key never reaches a browser.** It's a deployment secret; sessions call your own `/api/claude`, which adds it server-side. A stolen laptop leaks nothing.
 - **One season, every device.** Progress round-trips through Cloudflare KV keyed by your email, so your phone and your laptop climb the same ladder.
 
