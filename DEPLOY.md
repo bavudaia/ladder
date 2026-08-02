@@ -62,13 +62,24 @@ The variable name must be exactly `PREPHERO` — that is what `functions/api/sta
 
 ## 3. Add your API key as a secret
 
-**Settings → Variables and Secrets → Add**, and make sure you choose **Secret**, not plaintext:
+Do this **inside the Pages project**, not in the account-level Secrets Store.
+They are different features: the Secrets Store is a shared vault, and a secret
+sitting there is invisible to a Pages Function unless it is explicitly bound to
+that project.
+
+**Your Pages project → Settings → Variables and Secrets → Add**, type **Secret**:
 
 | Name | Value |
 | --- | --- |
 | `ANTHROPIC_API_KEY` | `sk-ant-...` |
 
-Add it for **Production** (and Preview too, if you plan to use preview URLs).
+Add it to **Production**, and to **Preview** as well if you ever open a preview
+URL — the two environments have separate variables, and a deployment only sees
+its own.
+
+(If you would rather keep secrets in the Secrets Store, that works too: bind
+them to this project under Settings → Bindings, using the same names. The code
+accepts either shape.)
 
 ## 4. Set your password
 

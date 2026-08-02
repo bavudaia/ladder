@@ -17,6 +17,25 @@ export const DEFAULT_SESSION_HOURS = 24;
 export const MAX_FAILURES = 8;
 export const WINDOW_SECONDS = 15 * 60;
 
+/* A secret can arrive two ways, and the dashboard makes it easy to pick either:
+ *
+ *   - a project-level secret in Settings -> Variables and Secrets, which lands
+ *     on env as a plain string, or
+ *   - a binding to the account-level Secrets Store, which lands as an object
+ *     whose get() resolves to the value.
+ *
+ * Accept both, so a working deployment does not depend on guessing which one
+ * the person configuring it happened to use. */
+export async function resolveSecret(env, name) {
+  const v = env ? env[name] : null;
+  if (!v) return "";
+  if (typeof v === "string") return v;
+  if (typeof v.get === "function") {
+    try { return (await v.get()) || ""; } catch (e) { return ""; }
+  }
+  return "";
+}
+
 export function json(body, status, extraHeaders) {
   const headers = { "content-type": "application/json", "cache-control": "no-store" };
   return new Response(JSON.stringify(body), {

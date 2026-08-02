@@ -21,7 +21,7 @@
  * booleans about configuration only, never a secret.
  */
 
-import { json, verifySession, readCookie, SESSION_COOKIE } from "./_lib.js";
+import { json, verifySession, readCookie, resolveSecret, SESSION_COOKIE } from "./_lib.js";
 
 const CERT_TTL_MS = 60 * 60 * 1000;
 let certCache = { at: 0, domain: "", keys: null };
@@ -81,9 +81,8 @@ async function verifyAccessJwt(token, teamDomain, aud) {
   return String(email).toLowerCase();
 }
 
-async function identify(request, env) {
+async function identify(request, env, appPassword) {
   const accessConfigured = !!(env.ACCESS_TEAM_DOMAIN && env.ACCESS_AUD);
-  const passwordConfigured = !!env.APP_PASSWORD;
 
   if (accessConfigured) {
     const token = request.headers.get("Cf-Access-Jwt-Assertion");
@@ -93,8 +92,8 @@ async function identify(request, env) {
     }
   }
 
-  if (passwordConfigured) {
-    const payload = await verifySession(env.APP_PASSWORD, readCookie(request, SESSION_COOKIE));
+  if (appPassword) {
+    const payload = await verifySession(appPassword, readCookie(request, SESSION_COOKIE));
     if (payload) return { email: payload.sub || "owner", via: "password" };
   }
 
@@ -105,13 +104,14 @@ export async function onRequest(context) {
   const { request, env, next, data } = context;
   const path = new URL(request.url).pathname;
 
+  const appPassword = await resolveSecret(env, "APP_PASSWORD");
   const accessConfigured = !!(env.ACCESS_TEAM_DOMAIN && env.ACCESS_AUD);
-  const passwordConfigured = !!env.APP_PASSWORD;
+  const passwordConfigured = !!appPassword;
   const configured = accessConfigured || passwordConfigured;
 
   let who = null, failure = null;
   if (configured) {
-    try { who = await identify(request, env); }
+    try { who = await identify(request, env, appPassword); }
     catch (e) { failure = e.message || "Verification failed."; }
   }
 

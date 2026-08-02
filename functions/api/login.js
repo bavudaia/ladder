@@ -6,12 +6,13 @@
  * returned, logged, or echoed. */
 
 import {
-  json, passwordMatches, signSession, sessionCookie, sessionHours, clearedCookie,
+  json, passwordMatches, signSession, sessionCookie, sessionHours, clearedCookie, resolveSecret,
   throttleState, recordFailure, clearFailures, clientIp, MAX_FAILURES, WINDOW_SECONDS
 } from "./_lib.js";
 
 export async function onRequestPost({ request, env }) {
-  if (!env.APP_PASSWORD) {
+  const appPassword = await resolveSecret(env, "APP_PASSWORD");
+  if (!appPassword) {
     return json({ error: { message: "This deployment has no APP_PASSWORD set, so password login is disabled." } }, 503);
   }
   /* Throttling needs somewhere to count. Refuse rather than run an
@@ -32,7 +33,7 @@ export async function onRequestPost({ request, env }) {
   try { body = await request.json(); } catch (e) { body = null; }
   const given = body && typeof body.password === "string" ? body.password : "";
 
-  if (!(await passwordMatches(given, env.APP_PASSWORD))) {
+  if (!(await passwordMatches(given, appPassword))) {
     await recordFailure(env, ip);
     const left = Math.max(0, MAX_FAILURES - ((state ? state.failures : 0) + 1));
     return json({ error: { message: "Wrong password." }, attemptsLeft: left }, 401,
@@ -41,7 +42,7 @@ export async function onRequestPost({ request, env }) {
 
   await clearFailures(env, ip);
   const hours = sessionHours(env);
-  const token = await signSession(env.APP_PASSWORD, {
+  const token = await signSession(appPassword, {
     sub: "owner",
     iat: Math.floor(Date.now() / 1000),
     exp: Math.floor(Date.now() / 1000) + hours * 3600

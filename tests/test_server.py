@@ -83,6 +83,24 @@ ok(round === '{"sub":"owner"}', "survives a round trip, got " + round);
 ok(b64urlEncode(bytes).indexOf("=") < 0, "no padding");
 ok(b64urlEncode(bytes).indexOf("+") < 0 && b64urlEncode(bytes).indexOf("/") < 0, "url-safe alphabet");
 
+print("-- secrets arrive as strings or as Secrets Store bindings --");
+var sec = {};
+resolveSecret({ A: "plain-value" }, "A").then(function(v){ sec.str = v; });
+resolveSecret({ A: { get: function(){ return Promise.resolve("store-value"); } } }, "A").then(function(v){ sec.store = v; });
+resolveSecret({}, "MISSING").then(function(v){ sec.missing = v; });
+resolveSecret(null, "A").then(function(v){ sec.noEnv = v; });
+resolveSecret({ A: "" }, "A").then(function(v){ sec.empty = v; });
+resolveSecret({ A: { get: function(){ return Promise.reject(new Error("boom")); } } }, "A").then(function(v){ sec.throws = v; });
+resolveSecret({ A: { notGet: 1 } }, "A").then(function(v){ sec.wrongShape = v; });
+settle();
+ok(sec.str === "plain-value", "a project-level secret reads as a string, got " + sec.str);
+ok(sec.store === "store-value", "a Secrets Store binding is unwrapped via get(), got " + sec.store);
+ok(sec.missing === "", "an unset name is empty, not undefined");
+ok(sec.noEnv === "", "a missing env is empty");
+ok(sec.empty === "", "an empty string stays empty");
+ok(sec.throws === "", "a failing binding degrades to empty rather than throwing");
+ok(sec.wrongShape === "", "an unrecognised shape is empty");
+
 print("-- password comparison --");
 var r = {};
 passwordMatches(PW, PW).then(function(v){ r.same = v; });

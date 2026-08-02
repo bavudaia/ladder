@@ -9,6 +9,8 @@
  * bounded, so that anyone who does get past Access still cannot turn this into
  * a general-purpose key for arbitrary work. */
 
+import { resolveSecret } from "./_lib.js";
+
 const UPSTREAM = "https://api.anthropic.com/v1/messages";
 const API_VERSION = "2023-06-01";
 const MODELS = ["claude-opus-5", "claude-sonnet-5", "claude-haiku-4-5"];
@@ -23,7 +25,8 @@ function json(body, status) {
 }
 
 export async function onRequestPost({ request, env }) {
-  if (!env.ANTHROPIC_API_KEY) {
+  const apiKey = await resolveSecret(env, "ANTHROPIC_API_KEY");
+  if (!apiKey) {
     return json({ error: { message: "ANTHROPIC_API_KEY is not set on this deployment." } }, 503);
   }
 
@@ -55,7 +58,7 @@ export async function onRequestPost({ request, env }) {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-api-key": env.ANTHROPIC_API_KEY,
+        "x-api-key": apiKey,
         "anthropic-version": API_VERSION
       },
       body: JSON.stringify(forward)
