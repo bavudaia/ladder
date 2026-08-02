@@ -4,3 +4,6 @@ tests/.build/
 # local tool + OS noise
 .claude/
 .DS_Store
+
+# static-only upload folder for the Cloudflare dashboard
+upload-static/

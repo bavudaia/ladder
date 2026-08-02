@@ -25,11 +25,28 @@ The in-app profile lock screen disappears in this mode — Access has already pr
 
 ## 1. Deploy the site
 
-**Dashboard → Workers & Pages → Create → Pages.**
+**Connect a Git repository. Do not drag the folder in.**
 
-Either connect a Git repo, or pick **Upload assets**, name the project (say `prephero`), and drag the folder in. Cloudflare detects `functions/` and wires those routes up automatically — no build command, no framework preset.
+This app is not purely static — `functions/` is what holds your API key and syncs your season. Dashboard drag-and-drop does not compile Functions:
 
-You get `https://prephero.pages.dev`. Open it: you should see **"This deployment is not protected"** if you poke at `/api/me`. That is correct — the API refuses to work until Access is configured. It fails closed on purpose.
+- The **Create a Worker → Upload and deploy** flow rejects them outright with *"Pages functions are not supported."*
+- Even the Pages uploader is for static assets. The two paths that build Functions are **Git integration** and **Wrangler** (`npx wrangler pages deploy`, which needs Node).
+
+Git integration needs nothing installed locally, so use that.
+
+**Dashboard → Workers & Pages → Create → Pages → Connect to Git**, pick your repository, then:
+
+| Setting | Value |
+| --- | --- |
+| Framework preset | None |
+| Build command | *(leave empty)* |
+| Build output directory | `/` |
+
+Save and deploy. You get `https://<project>.pages.dev`.
+
+Check it worked: open `https://<project>.pages.dev/api/me`. A **503 saying the deployment is not protected** is the correct answer at this stage — the API fails closed until Access is configured. A **404** means Functions did not build, and you are back on the drag-and-drop path.
+
+> Never drag the project folder into an uploader. It includes `.git/`, which would publish your entire repository history at your site's URL, and `tests/.build/`, which is megabytes of generated junk. Git integration avoids both — `.gitignore` already excludes them.
 
 ## 2. Create the KV namespace
 
