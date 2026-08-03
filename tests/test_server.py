@@ -101,6 +101,19 @@ ok(sec.empty === "", "an empty string stays empty");
 ok(sec.throws === "", "a failing binding degrades to empty rather than throwing");
 ok(sec.wrongShape === "", "an unrecognised shape is empty");
 
+print("-- season ordering --");
+/* Revisions restart at 1 after a reset, so they are only comparable inside one
+   season. Getting this wrong refuses a reset for ever. */
+ok(compareSeasons("2026-08-02#3", "2026-08-01#2") === 1, "a later date is newer");
+ok(compareSeasons("2026-08-01#2", "2026-08-02#3") === -1, "an earlier one is older");
+ok(compareSeasons("2026-08-02#3", "2026-08-02#3") === 0, "the same season is the same season");
+ok(compareSeasons("2026-08-02#3", "2026-08-02#2") === 1, "a re-armed serial on the same date is newer");
+ok(compareSeasons("2026-08-02#10", "2026-08-02#2") === 1, "serials compare as numbers, not strings");
+ok(compareSeasons("2026-08-02#2", "2026-08-02#10") === -1, "in both directions");
+ok(compareSeasons("2026-08-02", "2026-08-02#1") === -1, "a missing serial is older than serial 1");
+ok(compareSeasons("", "2026-08-02#1") === -1, "an absent epoch is older than any season");
+ok(compareSeasons(null, undefined) === 0, "and two absent epochs are equal rather than throwing");
+
 print("-- password comparison --");
 var r = {};
 passwordMatches(PW, PW).then(function(v){ r.same = v; });

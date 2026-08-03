@@ -174,6 +174,8 @@ Change the hour by editing the `cron` line in `.github/workflows/nudge.yml`. Tur
 | Chip says **No sync store** | The `PREPHERO` KV binding is missing or misnamed. |
 | Sessions still say *Offline bank* | `ANTHROPIC_API_KEY` is not set, or was added as plaintext to the wrong environment. |
 | Chip says **Sync failed** | Hover it for the error. A 503 means the KV binding is missing; a 401 means your session expired — sign in again. |
+| Chip says **Sync failed** right after a reset | Fixed. The store held the season from *before* the reset, and the endpoint used to compare revision numbers without noticing they belong to different seasons — a fresh season starts counting again at 1, so it looked stale for ever. Redeploy and it clears on the next push. |
+| Sync says this device is running an **older build** | It is: another device has synced a newer season than the one this tab loaded. Reload the page. |
 | Signed out unexpectedly | The session expired, or `APP_PASSWORD` changed. Both are by design. |
 | Nudge returns **401** | `NUDGE_SECRET` differs between Cloudflare and GitHub, or you have not redeployed since setting it. |
 | Nudge returns **503** | One of `NUDGE_SECRET`, `NUDGE_TO`, or the `PREPHERO` binding is missing. |
@@ -194,6 +196,8 @@ Practise on a plane on your laptop and on the train on your phone, both offline,
 Recall cards merge the same way but keyed by card id, keeping whichever copy has been reviewed more — so a card you pushed from box 2 to box 3 on your phone this morning is not dragged back by a laptop still holding yesterday's copy.
 
 The server also refuses a write that is older than what it holds; the client merges and retries rather than rolling your ladder backwards.
+
+Revisions only mean anything **inside** one season. A reset bumps the season and starts the counter again at 1, so the server compares the season first: a newer season replaces the stored one outright however low its revision, an older one is refused outright however high. Without that, a device that had been practising for a fortnight could put the pre-reset season back, and — worse — the reset itself could never be pushed at all.
 
 ## Running it locally afterwards
 

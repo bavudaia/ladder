@@ -15,7 +15,15 @@ globalThis.__remote = null;          /* what the "KV" holds */
 globalThis.__calls = [];
 globalThis.__me = { hosted:true, authed:true, email:"me@example.com", hasServerKey:true,
                     sync:true, configured:true, authMethod:"access" };
-globalThis.__stateStatus = 200;      /* force 409 / 500 for specific tests */
+globalThis.__stateStatus = 200;      /* 409 arms the real conflict rule; other codes are forced */
+globalThis.__legacyServer = false;   /* true = the endpoint before it knew about seasons */
+function __cmpSeason(a, b){
+  function p(e){ var x = String(e||"").split("#"); return { d:x[0]||"", s:Number(x[1]||0)||0 }; }
+  var x = p(a), y = p(b);
+  if (x.d !== y.d) return x.d < y.d ? -1 : 1;
+  if (x.s !== y.s) return x.s < y.s ? -1 : 1;
+  return 0;
+}
 
 function __res(status, obj){
   return Promise.resolve({
@@ -43,12 +51,33 @@ function fetch(url, opts){
   }
   if (url === "/api/state") {
     if ((opts.method || "GET") === "GET") return __res(200, { state: globalThis.__remote });
-    if (globalThis.__stateStatus === 409) {
-      globalThis.__stateStatus = 200;
-      return __res(409, { error:{message:"Stale write refused."}, state: globalThis.__remote });
+    if (globalThis.__stateStatus !== 200 && globalThis.__stateStatus !== 409) {
+      return __res(globalThis.__stateStatus, { error:{message:"boom"} });
     }
-    if (globalThis.__stateStatus !== 200) return __res(globalThis.__stateStatus, { error:{message:"boom"} });
-    globalThis.__remote = JSON.parse(opts.body);
+    /* Model the real endpoint rather than a one-shot flag: revisions are only
+       comparable inside one season, so a write is refused when it is behind the
+       stored one AND belongs to the same season. Getting this wrong in the stub
+       is how a sync that could never converge passed its tests. */
+    var incoming = JSON.parse(opts.body);
+    var stored = globalThis.__remote;
+    if (globalThis.__stateStatus === 409 && stored && globalThis.__legacyServer) {
+      /* The endpoint as it was before it learned about seasons: revisions only. */
+      if (Number(incoming.rev||0) < Number(stored.rev||0)) {
+        return __res(409, { error:{message:"Stale write refused."},
+          rev: Number(stored.rev||0), state: stored });
+      }
+    } else if (globalThis.__stateStatus === 409 && stored) {
+      var order = __cmpSeason(incoming.epoch, stored.epoch);
+      if (order < 0) {
+        return __res(409, { error:{message:"That season is older than the one already stored."},
+          reason:"old-season", rev: Number(stored.rev||0), state: stored });
+      }
+      if (order === 0 && Number(incoming.rev||0) < Number(stored.rev||0)) {
+        return __res(409, { error:{message:"Stale write refused."},
+          reason:"stale", rev: Number(stored.rev||0), state: stored });
+      }
+    }
+    globalThis.__remote = incoming;
     return __res(200, { ok:true });
   }
   if (url === "/api/claude") return __res(200, {});
@@ -250,6 +279,61 @@ ok(out === true, "the push eventually succeeded, got " + out);
 ok(T.state.user.history[0].entries.length === 2, "both devices' sessions are in the local season now");
 ok(T.state.user.points === 180, "points recomputed after the merge, got " + T.state.user.points);
 ok(globalThis.__remote.user.points === 180, "and the server has the merged season");
+
+print("-- a reset can still be pushed over the season it replaced --");
+/* The exact shape of a reset that has not synced yet: the store still holds the
+   previous season, many revisions ahead because it was used for days, while the
+   fresh season has started counting again from 1. */
+function oldSeasonBlob(rev){
+  var o = JSON.parse(JSON.stringify(PHONE));
+  o.epoch = "2026-08-01#2"; o.rev = rev; o.user.points = 9999;
+  return o;
+}
+
+/* First against the endpoint as it is deployed today, which compares revisions
+   and knows nothing about seasons. The client has to be able to get out of this
+   on its own, because that is the situation until the deploy lands. */
+globalThis.__legacyServer = true;
+globalThis.__remote = oldSeasonBlob(12);
+globalThis.__stateStatus = 409;
+T.state.rev = 3;
+T.state.user.points = 130;
+var viaClient = null;
+T.pushRemote().then(function(r){ viaClient = r; });
+settle();
+ok(viaClient === true, "the push got through rather than colliding for ever, got " + viaClient);
+ok(T.state.rev > 12, "our revision moved past the one we collided with, got " + T.state.rev);
+ok(globalThis.__remote.epoch === T.SEASON_ID, "the server holds the new season, got " + globalThis.__remote.epoch);
+ok(globalThis.__remote.user.points === 130, "with the reset progress, not the old 9999");
+ok(T.SYNC.status === "synced", "the chip says synced, got " + T.SYNC.status);
+ok(T.SYNC.error === null, "with no error left over");
+
+/* And against the fixed endpoint, where a newer season is simply accepted and
+   there is no conflict to recover from at all. */
+globalThis.__legacyServer = false;
+globalThis.__remote = oldSeasonBlob(500);
+globalThis.__stateStatus = 409;
+var before409 = globalThis.__calls.length;
+var direct = null;
+T.pushRemote().then(function(r){ direct = r; });
+settle();
+ok(direct === true, "accepted, got " + direct);
+ok(globalThis.__calls.length - before409 === 1, "in one call, with no conflict round trip");
+ok(globalThis.__remote.user.points === 130, "and the reset is what is stored");
+
+print("-- but an out-of-date build cannot put the old season back --");
+globalThis.__remote = JSON.parse(JSON.stringify(T.state));   /* the new season is stored now */
+globalThis.__stateStatus = 409;
+T.state.epoch = "2026-08-01#2";        /* pretend this tab is the stale device */
+T.state.rev = 99;
+T.state.user.points = 9999;
+var refused = null;
+T.pushRemote().then(function(r){ refused = r; });
+settle();
+ok(refused === false, "the push failed, got " + refused);
+ok(globalThis.__remote.epoch === T.SEASON_ID, "the stored season is untouched, got " + globalThis.__remote.epoch);
+ok(globalThis.__remote.user.points === 130, "so the reset was not undone by a stale tab");
+ok(String(T.SYNC.error).indexOf("older build") >= 0, "and it says what is actually wrong, got " + T.SYNC.error);
 done();
 """
 

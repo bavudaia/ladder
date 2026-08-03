@@ -36,6 +36,25 @@ export async function resolveSecret(env, name) {
   return "";
 }
 
+/* Season epochs are "YYYY-MM-DD#serial", and a reset bumps the serial and starts
+ * the revision counter again at 1. So revisions are only comparable inside one
+ * season: judging a fresh season stale because its rev is lower than the season
+ * it replaced is what makes a reset impossible to push.
+ *
+ * Not a string comparison — "#10" sorts before "#2".
+ *
+ * Returns -1, 0 or 1 for "a is older than b", "same season", "a is newer". */
+export function compareSeasons(a, b) {
+  const parse = (e) => {
+    const [date, serial] = String(e || "").split("#");
+    return { date: date || "", serial: Number(serial || 0) || 0 };
+  };
+  const x = parse(a), y = parse(b);
+  if (x.date !== y.date) return x.date < y.date ? -1 : 1;
+  if (x.serial !== y.serial) return x.serial < y.serial ? -1 : 1;
+  return 0;
+}
+
 export function json(body, status, extraHeaders) {
   const headers = { "content-type": "application/json", "cache-control": "no-store" };
   return new Response(JSON.stringify(body), {

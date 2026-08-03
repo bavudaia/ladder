@@ -5,6 +5,8 @@
  * what it already holds, which stops a stale tab from rolling back a season
  * you advanced on another device. */
 
+import { compareSeasons } from "./_lib.js";
+
 const MAX_BYTES = 900 * 1024;   /* KV's value ceiling is 25 MB; this is a sanity bound */
 
 function json(body, status) {
@@ -38,9 +40,25 @@ export async function onRequestPut({ request, env, data }) {
   if (existingRaw) {
     try {
       const existing = JSON.parse(existingRaw);
-      const theirs = Number(incoming.rev || 0), ours = Number(existing.rev || 0);
-      if (theirs < ours) {
-        return json({ error: { message: "Stale write refused." }, rev: ours, state: existing }, 409);
+      const order = compareSeasons(incoming.epoch, existing.epoch);
+
+      if (order < 0) {
+        /* An older season than the one stored. This is a device running a build
+           from before a reset — it must not be allowed to put the old season
+           back, and there is nothing for it to merge, so say so plainly rather
+           than sending it round the retry loop. */
+        return json({ error: { message: "That season is older than the one already stored. This device is running an out-of-date build — reload it." },
+          reason: "old-season", rev: Number(existing.rev || 0), state: existing }, 409);
+      }
+
+      /* order > 0 is a reset: the new season replaces the old outright, and its
+         revision counter starting again at 1 is expected rather than stale. */
+      if (order === 0) {
+        const theirs = Number(incoming.rev || 0), ours = Number(existing.rev || 0);
+        if (theirs < ours) {
+          return json({ error: { message: "Stale write refused." },
+            reason: "stale", rev: ours, state: existing }, 409);
+        }
       }
     } catch (e) { /* unparseable stored blob: let the write through */ }
   }

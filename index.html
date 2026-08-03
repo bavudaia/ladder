@@ -1927,9 +1927,20 @@
           return false;
         }
         if (res.status === 409) {
-          /* another device moved first: merge its season in and try once more */
           var body = await res.json();
-          state = mergeSeasons(state, body.state);
+          if (body.reason === "old-season") {
+            /* This build is behind the one that last synced. Merging cannot help
+               and retrying would only push the old season again. */
+            throw new Error("This device is running an older build than the one that last synced. Reload the page.");
+          }
+          /* another device moved first: merge its season in and try once more */
+          state = mergeSeasons(state, body.state) || state;
+          /* mergeSeasons only bumps rev when it actually merges two seasons.
+             When it discards the other side — a season from before a reset —
+             our rev stays put, and the retry would collide on the same number
+             for ever. Take the server's number and go past it either way. */
+          state.rev = Math.max(Number(state.rev || 0), Number(body.rev || 0)) + 1;
+          state.updatedAt = new Date().toISOString();
           pruneImages(state.activeSession);
           saveLocal();
           renderDashboard();
