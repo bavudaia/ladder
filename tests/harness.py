@@ -51,7 +51,15 @@ EXPORT = """
     userContent: userContent, thumbsHtml: thumbsHtml, attachHtml: attachHtml,
     sessionImages: sessionImages, sessionImgBytes: sessionImgBytes, imgDataUrl: imgDataUrl,
     IMG_MAX_PER_TURN: IMG_MAX_PER_TURN, IMG_SESSION_BUDGET: IMG_SESSION_BUDGET,
-    IMG_TARGET_BYTES: IMG_TARGET_BYTES, IMG_MAX_EDGE: IMG_MAX_EDGE };
+    IMG_TARGET_BYTES: IMG_TARGET_BYTES, IMG_MAX_EDGE: IMG_MAX_EDGE,
+    captureCards: captureCards, dueCards: dueCards, pickRecallCards: pickRecallCards,
+    startRecall: startRecall, applyRecallResults: applyRecallResults, priorAttempts: priorAttempts,
+    recallBase: recallBase, dominantCat: dominantCat, interleave: interleave, trimDeck: trimDeck,
+    bumpRecallStreak: bumpRecallStreak, offlineRecallGrade: offlineRecallGrade, renderRecall: renderRecall,
+    cardById: cardById, nextDueDate: nextDueDate, seedBox: seedBox, firstClause: firstClause,
+    RECALL_DAYS: RECALL_DAYS, RECALL_N: RECALL_N, RECALL_BOXES: RECALL_BOXES,
+    RECALL_MAX_CARDS: RECALL_MAX_CARDS, RECALL_GOOD: RECALL_GOOD, RECALL_PARTIAL: RECALL_PARTIAL,
+    RECALL_SCHEMA: RECALL_SCHEMA, todayStr: todayStr, addDays: addDays };
 """
 
 
@@ -73,6 +81,16 @@ function ok(c,m){ checks++; if(!c){ fails++; print("  FAIL: "+m); } }
 function flush(){ if (typeof drainMicrotasks === "function") drainMicrotasks(); }
 function settle(n){ for (var i=0;i<(n||20);i++) flush(); }
 function done(){ print(""); print(fails===0 ? ("ALL "+checks+" CHECKS PASSED") : (fails+" FAILURES of "+checks)); }
+
+/* A day is a local day to the app: a streak must not break because you practised
+   at 6pm in California. toISOString() would say tomorrow for half of every
+   evening, so mirror the app's own local formatting rather than reaching for UTC. */
+function DAY(offset){
+  var d = new Date();
+  if (offset) d.setDate(d.getDate() + offset);
+  function p(n){ return String(n).length < 2 ? "0" + n : String(n); }
+  return d.getFullYear() + "-" + p(d.getMonth()+1) + "-" + p(d.getDate());
+}
 
 /* The app boots locked, so a suite has no state to assert against until a
    profile exists. Create and unlock a throwaway one. A key seeded through

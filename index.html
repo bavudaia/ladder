@@ -300,6 +300,38 @@
   .bubble .who { display: block; font-family: var(--font-mono); font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); margin-bottom: 5px; }
   .turn-meter { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); }
 
+  /* ---------- Recall ---------- */
+  .recall-cta {
+    display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; cursor: pointer;
+    background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 4px;
+    padding: 14px 16px; color: inherit; transition: transform 0.12s, border-color 0.12s;
+  }
+  .recall-cta:hover { border-color: var(--accent-strong); transform: translateY(-1px); }
+  .recall-cta .rc-n { font-family: var(--font-mono); font-size: 30px; font-weight: 700; color: var(--accent-strong); line-height: 1; }
+  .recall-cta .rc-label { font-weight: 600; font-size: 14.5px; display: block; margin-bottom: 3px; }
+  .recall-cta .rc-sub { font-size: 11.5px; color: var(--text-muted); line-height: 1.45; }
+  .recall-idle { font-size: 13px; color: var(--text-secondary); line-height: 1.55; }
+  .recall-stats { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+  .card-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-family: var(--font-mono); font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 10px; }
+
+  .progress-block { margin-bottom: 16px; }
+  .progress-block h4 { margin: 0 0 7px; font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); }
+  .progress-line { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; font-size: 13.5px; line-height: 1.55; }
+  .progress-line.sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+  .pl-now { font-family: var(--font-mono); font-size: 22px; font-weight: 700; line-height: 1; }
+  .pl-vs { color: var(--text-muted); }
+  .pl-delta { font-family: var(--font-mono); font-size: 12px; font-weight: 700; padding: 1px 6px; border-radius: 2px; }
+  .pl-delta.up { background: var(--good-soft); color: var(--good); }
+  .pl-delta.down { background: var(--critical-soft); color: var(--critical); }
+  .pl-delta.flat { background: var(--surface-sunken); color: var(--text-muted); }
+  .card-moves { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+  .card-move { background: var(--surface-sunken); border: 1px solid var(--border); border-radius: 4px; padding: 10px 12px; }
+  .cm-q { font-size: 13px; line-height: 1.5; margin-bottom: 6px; }
+  .cm-nums { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-family: var(--font-mono); font-size: 10.5px; color: var(--text-muted); }
+  .cm-score { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+  .cm-note { font-size: 12px; color: var(--text-secondary); margin-top: 6px; line-height: 1.5; }
+  .cm-note.fix { color: var(--critical); }
+
   /* qset */
   .stepper { display: flex; gap: 6px; margin-bottom: 14px; }
   .step-dot { flex: 1; height: 4px; border-radius: 2px; background: var(--surface-sunken); }
@@ -523,6 +555,14 @@
   <main class="grid" id="viewDashboard">
     <div class="col-main">
 
+      <section class="panel" id="recallPanel">
+        <div class="panel-header">
+          <h2>Recall</h2>
+          <span class="hint" id="recallHint">&mdash;</span>
+        </div>
+        <div class="panel-body" id="recallBody"></div>
+      </section>
+
       <section class="panel">
         <div class="panel-header">
           <h2>Training floor</h2>
@@ -745,10 +785,35 @@
     { id: "dsa_easy", name: "DSA easy", pts: 15, engine: "submit", cat: "Coding", img: true,
       blurb: "A warm-up rep. Fast, clean, and still graded on complexity and edge cases." },
     { id: "lesson", name: "Hello Interview lesson", pts: 10, engine: "qset", cat: "Fundamentals", n: 2, lesson: true,
-      blurb: "A short lesson on one topic, then two check questions to prove it landed." }
+      blurb: "A short lesson on one topic, then two check questions to prove it landed." },
+    { id: "recall", name: "Recall review", pts: 0, engine: "recall", cat: "Recall", hidden: true,
+      blurb: "Cards drawn from sessions you have already been graded on, mixed across tracks, due today." }
   ];
 
   var DIFFICULTY_OF = { dsa_easy: "easy", dsa_med: "medium", dsa_hard: "hard" };
+
+  /* ------------------------------------------------------------
+     RECALL
+
+     Retention is a scheduling problem, not a volume problem. Every graded
+     session leaves cards behind; each card sits in a Leitner box, and the box
+     decides when it comes back. Answer it well and it moves up and goes quiet
+     for longer. Miss it and it drops to box 1 and returns tomorrow. Ten days
+     is then an outcome rather than a setting, and the daily load stays flat
+     instead of growing with the season.
+
+     The schedule is also the rate limiter. A review pays what the block it came
+     from pays — which is only safe because you cannot review a card that is not
+     due, so there is nothing here to farm.
+     ------------------------------------------------------------ */
+
+  var RECALL_DAYS = [1, 3, 7, 16, 35];   /* days before a card in box 1..5 comes back */
+  var RECALL_BOXES = RECALL_DAYS.length;
+  var RECALL_N = 5;              /* cards per review — fixed, and the end is visible from card one */
+  var RECALL_MAX_CARDS = 400;    /* the deck is capped; what you have mastered retires first */
+  var RECALL_SHAKY_BOX = 2;      /* box 1-2 is "went badly", box 3+ is "went okay" */
+  var RECALL_GOOD = 70;          /* at or above this a card moves up a box */
+  var RECALL_PARTIAL = 45;       /* below this it drops to box 1 and counts as a lapse */
 
   var TOPICS = {
     "System design": ["URL shortener", "News feed", "Rate limiter", "Group chat", "Ride matching",
@@ -834,11 +899,30 @@
       strengths: { type: "array", items: { type: "string" } },
       gaps: { type: "array", items: { type: "string" } },
       next_actions: { type: "array", items: { type: "string" } },
-      detail: { type: "string" }
+      detail: { type: "string" },
+      /* What comes back in a week. Asking for these at grading time is the only
+         moment the grader has both the question and how the candidate actually
+         handled it, so this is where the deck gets written. */
+      review_cards: { type: "array", items: { type: "object",
+        properties: { q: { type: "string" }, ideal: { type: "string" } },
+        required: ["q", "ideal"], additionalProperties: false } }
     },
-    required: ["score", "bar", "verdict", "strengths", "gaps", "next_actions", "detail"],
+    required: ["score", "bar", "verdict", "strengths", "gaps", "next_actions", "detail", "review_cards"],
     additionalProperties: false
   };
+
+  /* Recall grades every card separately: a session average would tell you your
+     memory is "72", which schedules nothing. */
+  var RECALL_SCHEMA = (function () {
+    var s = JSON.parse(JSON.stringify(GRADE_SCHEMA));
+    delete s.properties.review_cards;
+    s.properties.cards = { type: "array", items: { type: "object",
+      properties: { index: { type: "integer" }, score: { type: "integer" },
+        verdict: { type: "string" }, correction: { type: "string" } },
+      required: ["index", "score", "verdict", "correction"], additionalProperties: false } };
+    s.required = s.required.filter(function (k) { return k !== "review_cards"; }).concat(["cards"]);
+    return s;
+  })();
 
   var GRADER_RULES = [
     "You are grading a senior software engineer candidate. Hold the senior bar.",
@@ -848,6 +932,10 @@
     "strengths and gaps: 2-4 items each, one sentence each, concrete. If there are no real strengths, return one honest item saying so.",
     "next_actions: 2-3 imperative items the candidate can act on in their next session.",
     "detail: under 250 words of markdown. No headings above ###.",
+    "review_cards: 2-3 questions to put in front of them again in a week, drawn from what they got wrong or " +
+      "answered shakily here. Each must stand alone with no reference back to this session — they will see it " +
+      "cold, with no transcript and no problem statement. q is the question; ideal is a two-to-four sentence " +
+      "reference answer. If they were solid throughout, return the two hardest ideas this session touched.",
     "Do not include internal or system XML tags in your response."
   ].join(" ");
 
@@ -1388,6 +1476,8 @@
       focus: "",
       voice: { enabled: false, voiceURI: "", rate: 1, lang: "en-US", silence: 4 },
       user: { points: 0, streak: 0, longestStreak: 0, lastLogDate: null, history: [] },
+      cards: [],
+      recall: { streak: 0, longestStreak: 0, lastDate: null, sessions: 0, reviewed: 0 },
       peers: PEER_DEFS.map(function (p) { return { id: p.id, name: p.name, tier: p.tier, points: 0, move: null }; }),
       lastPeerSyncDate: null,
       fieldHistory: [],
@@ -1768,6 +1858,32 @@
       var o = (older.milestones || []).filter(function (x) { return x.id === m.id; })[0];
       return { id: m.id, done: !!(m.done || (o && o.done)) };
     });
+    /* Cards carry their own schedule, so union them by id rather than taking the
+       newer device's list wholesale: a box you moved on the phone this morning
+       must survive a laptop that still holds yesterday's copy of that card. */
+    var cards = {}, cardOrder = [];
+    [a, b].forEach(function (s) {
+      (s.cards || []).forEach(function (c) {
+        if (!c || !c.id) return;
+        var have = cards[c.id];
+        if (!have) { cards[c.id] = c; cardOrder.push(c.id); return; }
+        var mine = Number(c.reps || 0), theirs = Number(have.reps || 0);
+        if (mine > theirs || (mine === theirs && String(c.lastAt || "") > String(have.lastAt || ""))) cards[c.id] = c;
+      });
+    });
+    merged.cards = cardOrder.map(function (id) { return cards[id]; });
+
+    /* The review streak is a fact about days, not about devices: whichever
+       device reviewed most recently is the one that knows. */
+    var ra = a.recall || {}, rb = b.recall || {};
+    var rNewer = String(rb.lastDate || "") > String(ra.lastDate || "") ? rb
+               : String(ra.lastDate || "") > String(rb.lastDate || "") ? ra
+               : ((rb.streak || 0) > (ra.streak || 0) ? rb : ra);
+    merged.recall = JSON.parse(JSON.stringify(rNewer));
+    merged.recall.longestStreak = Math.max(ra.longestStreak || 0, rb.longestStreak || 0, merged.recall.streak || 0);
+    merged.recall.sessions = Math.max(ra.sessions || 0, rb.sessions || 0);
+    merged.recall.reviewed = Math.max(ra.reviewed || 0, rb.reviewed || 0);
+
     /* an unfinished session somewhere beats none here */
     if (!merged.activeSession && older.activeSession) merged.activeSession = older.activeSession;
 
@@ -1955,25 +2071,227 @@
       bonus = consistencyBonus(state.user.streak);
     }
 
+    /* A recall session's worth is decided by the cards in it, not by a fixed
+       number on the activity, and it carries its own streak on top of the
+       season one. */
+    var base = typeof sess.basePts === "number" ? sess.basePts : act.pts;
+    var recallBonus = act.engine === "recall" ? bumpRecallStreak(date) : 0;
+
     var entry = {
       activityId: act.id,
       name: act.name,
-      cat: act.cat,
+      cat: sess.catOverride || act.cat,
       topic: sess.topic || "",
-      base: act.pts,
+      base: base,
       bonus: bonus,
-      points: act.pts + bonus,
+      points: base + bonus + recallBonus,
       score: report ? report.score : null,
       bar: report ? report.bar : null,
       source: sess.source || "offline",
       at: new Date().toISOString()
     };
+    if (recallBonus) entry.recallBonus = recallBonus;
     day.entries.push(entry);
     day.points += entry.points;
     state.user.points += entry.points;
     day.rankThatDay = myRank();
     saveState();
     return entry;
+  }
+
+  /* ============================================================
+     THE DECK
+
+     Cards are the only thing here that is not derivable from the log, so they
+     are stored, merged, and capped in their own right. One card is one question
+     plus a reference answer plus a schedule.
+     ============================================================ */
+
+  var cardSeq = 0;
+
+  function normQ(s) { return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); }
+
+  function cardById(id) {
+    var all = state.cards || [];
+    for (var i = 0; i < all.length; i++) if (all[i].id === id) return all[i];
+    return null;
+  }
+
+  /* Where a new card enters. A session you scraped through seeds cards in box 1
+     so they come back tomorrow; a session you aced seeds higher, because making
+     you re-answer tomorrow what you clearly know is how a review queue becomes
+     something you stop opening. */
+  function seedBox(score, blank) {
+    if (blank) return 1;
+    if (score == null) return 1;
+    if (score >= 80) return 3;
+    if (score >= RECALL_GOOD) return 2;
+    return 1;
+  }
+
+  /* Offline there is no grader to write cards, but the rubric already knows what
+     the answer was supposed to contain. */
+  function rubricCards(sess) {
+    var item = sess.item || {};
+    var topic = sess.topic || item.topic || "";
+    return deriveRubric(item).slice(0, 3).map(function (r) {
+      return { q: (topic ? topic + " — " : "") + r.label + ". What does a complete answer cover?",
+        ideal: r.fix || r.detail || "" };
+    });
+  }
+
+  function cardSources(sess, report) {
+    var act = actById(sess.activityId);
+    var out = [];
+    /* A question set already is a deck: the questions come with reference
+       answers, and which ones went badly is right there in the answers. */
+    if (act.engine === "qset") {
+      ((sess.item || {}).questions || []).forEach(function (q, i) {
+        if (!q || !q.q) return;
+        out.push({ q: q.q, ideal: q.ideal || "", blank: !String(sess.answers["q" + i] || "").trim() });
+      });
+    }
+    ((report && report.review_cards) || []).forEach(function (c) {
+      if (c && c.q) out.push({ q: c.q, ideal: c.ideal || "" });
+    });
+    if (!out.length) out = rubricCards(sess);
+    return out;
+  }
+
+  function captureCards(sess, report) {
+    var act = actById(sess.activityId);
+    if (!act || act.engine === "recall") return 0;   /* a review does not reseed itself */
+    if (!state.cards) state.cards = [];
+
+    var seen = {};
+    state.cards.forEach(function (c) { seen[normQ(c.q)] = 1; });
+    var today = todayStr();
+    var added = 0;
+
+    cardSources(sess, report).forEach(function (s) {
+      var key = normQ(s.q);
+      if (!key || seen[key]) return;                 /* the same idea twice is one card */
+      seen[key] = 1;
+      var box = seedBox(report ? report.score : null, s.blank);
+      state.cards.push({
+        id: "c" + Date.now().toString(36) + "-" + (cardSeq++).toString(36),
+        q: String(s.q).slice(0, 400),
+        ideal: String(s.ideal || "").slice(0, 700),
+        cat: sess.catOverride || act.cat,
+        topic: sess.topic || "",
+        activityId: act.id,
+        box: box,
+        due: addDays(today, RECALL_DAYS[box - 1]),
+        reps: 0, lapses: 0, lastScore: null, lastAt: null,
+        createdAt: today, history: []
+      });
+      added++;
+    });
+    trimDeck();
+    return added;
+  }
+
+  /* An unbounded deck eventually costs more to sync than the season does. Retire
+     what you have already proved you know, not what you added most recently. */
+  function trimDeck() {
+    var over = (state.cards || []).length - RECALL_MAX_CARDS;
+    if (over <= 0) return;
+    var doomed = {};
+    state.cards.slice().sort(function (a, b) {
+      if ((b.box || 1) !== (a.box || 1)) return (b.box || 1) - (a.box || 1);
+      return String(a.lastAt || a.createdAt || "") < String(b.lastAt || b.createdAt || "") ? -1 : 1;
+    }).slice(0, over).forEach(function (c) { doomed[c.id] = 1; });
+    state.cards = state.cards.filter(function (c) { return !doomed[c.id]; });
+  }
+
+  function dueCards(day) {
+    var today = day || todayStr();
+    return (state.cards || []).filter(function (c) { return c && String(c.due || "") <= today; });
+  }
+
+  function nextDueDate() {
+    var best = null;
+    (state.cards || []).forEach(function (c) {
+      if (c && (!best || String(c.due || "") < best)) best = String(c.due || "");
+    });
+    return best;
+  }
+
+  /* Interleaving is most of the value: five cards from one topic is recognition
+     practice, five across topics is what an interview actually does to you. */
+  function interleave(cards) {
+    var byCat = {}, order = [], out = [];
+    cards.forEach(function (c) {
+      var k = c.cat || "Other";
+      if (!byCat[k]) { byCat[k] = []; order.push(k); }
+      byCat[k].push(c);
+    });
+    while (out.length < cards.length) {
+      order.forEach(function (k) { if (byCat[k].length) out.push(byCat[k].shift()); });
+    }
+    return out;
+  }
+
+  /* Mostly what went badly, with a couple that went fine. The ones that went
+     fine are the ones about to slip, and they are also why a review is
+     survivable rather than five minutes of being told you were wrong. */
+  function pickRecallCards(n) {
+    var due = dueCards();
+    if (!due.length) return [];
+    var byDue = function (x, y) {
+      if (String(x.due) !== String(y.due)) return String(x.due) < String(y.due) ? -1 : 1;
+      return (x.box || 1) - (y.box || 1);
+    };
+    var shaky = due.filter(function (c) { return (c.box || 1) <= RECALL_SHAKY_BOX; }).sort(byDue);
+    var okay = due.filter(function (c) { return (c.box || 1) > RECALL_SHAKY_BOX; }).sort(byDue);
+
+    var wantShaky = Math.min(shaky.length, Math.max(1, n - 2));
+    var chosen = shaky.slice(0, wantShaky).concat(okay.slice(0, n - wantShaky));
+    if (chosen.length < n) {
+      chosen = chosen.concat(shaky.slice(wantShaky).concat(okay.slice(Math.max(0, n - wantShaky)))
+        .slice(0, n - chosen.length));
+    }
+    return interleave(chosen.slice(0, n));
+  }
+
+  /* A review pays what the block it came from pays — the user's ask, and safe
+     only because the schedule decides what is due. */
+  function recallBase(cards) {
+    if (!cards.length) return 0;
+    var sum = 0;
+    cards.forEach(function (c) {
+      var a = actById(c.activityId);
+      sum += a && a.pts ? a.pts : 20;
+    });
+    return clamp(Math.round(sum / cards.length), 10, 100);
+  }
+
+  function dominantCat(cards) {
+    var n = {}, best = null;
+    cards.forEach(function (c) {
+      var k = c.cat || "Fundamentals";
+      n[k] = (n[k] || 0) + 1;
+      if (!best || n[k] > n[best]) best = k;
+    });
+    return best || "Fundamentals";
+  }
+
+  function recallTopicLabel(cards) {
+    var seen = {}, list = [];
+    cards.forEach(function (c) { var t = c.topic || ""; if (t && !seen[t]) { seen[t] = 1; list.push(t); } });
+    if (!list.length) return "Mixed recall";
+    return list.length === 1 ? list[0] : list[0] + " + " + (list.length - 1) + " more";
+  }
+
+  /* One review streak-day per day, tracked apart from the season streak so that
+     showing up to review is its own habit rather than a rounding error on it. */
+  function bumpRecallStreak(date) {
+    var r = state.recall || (state.recall = { streak: 0, longestStreak: 0, lastDate: null, sessions: 0, reviewed: 0 });
+    if (r.lastDate === date) return 0;
+    r.streak = (r.lastDate && daysBetween(r.lastDate, date) === 1) ? (r.streak || 0) + 1 : 1;
+    r.lastDate = date;
+    r.longestStreak = Math.max(r.longestStreak || 0, r.streak);
+    return consistencyBonus(r.streak);
   }
 
   function categoryTotals() {
@@ -2194,7 +2512,9 @@
   var WRITER_SYS = "You write interview practice material for senior software engineers preparing for interviews at large tech companies. Everything you produce is precise, realistic, and calibrated to the senior bar. Never include the solution to a problem in the problem statement. Do not include internal or system XML tags in your response.";
 
   function genSpec(act, topic) {
-    if (act.engine === "chat") return null;
+    /* Nothing to write for these two: a mock is generated turn by turn, and a
+       review's content is the deck you already earned. */
+    if (act.engine === "chat" || act.engine === "recall") return null;
 
     if (act.id === "dsa_easy" || act.id === "dsa_med" || act.id === "dsa_hard") {
       var diff = DIFFICULTY_OF[act.id];
@@ -2352,6 +2672,27 @@
         GRADER_RULES + " Judge precision against the brief. Reward correct mechanism and honest limitations; " +
         "penalise hand-waving, and name anything they stated that is actually wrong.";
       body = itemSummary(item) + "\n\nCandidate explain-back:\n" + (sess.answers.answer || "(blank)");
+    } else if (act.engine === "recall") {
+      head = "You are grading a spaced-repetition review. Each card was written after an earlier session and the " +
+        "candidate has just answered it from memory, cold. " + GRADER_RULES +
+        " Grade recall, not eloquence: a terse but correct answer scores high, and a fluent answer that misses " +
+        "the mechanism does not. Score each card on its own — the whole point of this session is deciding which " +
+        "cards come back tomorrow and which can wait a month, and a single averaged number schedules nothing. " +
+        "In cards, return one entry per card with its 0-based index, a 0-100 score for that card alone, a " +
+        "one-sentence verdict, and correction: the single most important thing they missed, or an empty string " +
+        "if nothing material was missed.";
+      body = (item.questions || []).map(function (q, i) {
+        return "CARD " + i + " [" + (q.cat || "") + (q.topic ? " / " + q.topic : "") + "]\n" +
+          "Question: " + q.q +
+          (q.ideal ? "\nReference answer: " + q.ideal : "") +
+          (q.lastScore != null
+            ? "\nThey scored " + q.lastScore + "/100 on this card last time, " + (q.reps || 1) + " review(s) in."
+            : "\nThis is the first time this card has come back.") +
+          (((sess.revealed || {})["q" + i] || 0) >= 2
+            ? "\n[They revealed the reference answer before answering. Score only what they added on top of it.]"
+            : "") +
+          "\nTheir answer: " + (String(sess.answers["q" + i] || "").trim() || "(blank)");
+      }).join("\n\n");
     } else if (act.engine === "qset") {
       head = "You are grading a set of short interview answers from a senior candidate. " + GRADER_RULES +
         " In detail, give one short line of feedback per question, numbered, before any closing remarks.";
@@ -2378,7 +2719,8 @@
         " attached with this message.]";
     }
 
-    return { system: head, schema: GRADE_SCHEMA, effort: "high", maxTokens: 6000,
+    return { system: head, schema: act.engine === "recall" ? RECALL_SCHEMA : GRADE_SCHEMA,
+      effort: "high", maxTokens: 6000,
       messages: [{ role: "user", content: userContent(body, imgs) }] };
   }
 
@@ -2474,6 +2816,44 @@
       detail: lines.join("\n\n") + "\n\n**Offline grading matches keywords against a reference answer.** It cannot judge whether your reasoning is sound." };
   }
 
+  /* Offline the scheduler still has to move every card somewhere, so grade each
+     one separately here too rather than spreading one session average across
+     five cards that went very differently. */
+  function offlineRecallGrade(sess) {
+    var qs = (sess.item || {}).questions || [];
+    var cards = [], sum = 0, up = 0, down = 0;
+    qs.forEach(function (q, i) {
+      var a = String(sess.answers["q" + i] || "").trim();
+      var n = words(a);
+      var ks = (deriveRubric({ rubric: [{ label: q.ideal || q.q, detail: "" }] })[0] || {}).k || [];
+      var low = " " + a.toLowerCase() + " ";
+      var hit = ks.filter(function (k) { return low.indexOf(String(k).toLowerCase()) >= 0; }).length;
+      var frac = ks.length ? hit / ks.length : 0;
+      var s = n < 3 ? 0 : Math.round(100 * clamp(0.7 * clamp(frac * 1.6, 0, 1) + 0.3 * clamp(n / 40, 0, 1), 0, 1));
+      sum += s;
+      if (s >= RECALL_GOOD) up++; else if (s < RECALL_PARTIAL) down++;
+      cards.push({ index: i, score: s,
+        verdict: n < 3 ? "Left blank." : s >= RECALL_GOOD ? "Recalled the core of it." :
+          s >= RECALL_PARTIAL ? "Partial recall — the shape is there, the mechanism is not." : "Not recalled.",
+        correction: s >= RECALL_GOOD ? "" : (q.ideal || "") });
+    });
+    var score = qs.length ? Math.round(sum / qs.length) : 0;
+    var bar = score >= 80 ? "Strong senior" : score >= 62 ? "Meets the senior bar" : score >= 45 ? "Borderline" : "Below bar";
+    return {
+      score: score, bar: bar,
+      verdict: up + " of " + qs.length + " came back cleanly" + (down ? ", " + down + " did not come back at all" : "") + ".",
+      strengths: up ? [up + " card" + (up === 1 ? "" : "s") + " recalled well enough to push out to a longer interval."]
+                    : ["Nothing came back cleanly this round. That is the honest read, and it is what the schedule is for."],
+      gaps: cards.filter(function (c) { return c.score < RECALL_GOOD; })
+        .slice(0, 4).map(function (c) { return "Card " + (c.index + 1) + ": " + (c.correction || "needs a fuller answer."); }),
+      next_actions: ["Re-answer the cards you scored lowest on out loud, without looking, before you close the tab.",
+        "Set an API key in Settings so recall is judged on whether you are right rather than on keyword overlap."],
+      detail: cards.map(function (c) { return "**Card " + (c.index + 1) + " — " + c.score + "/100.** " + c.verdict; }).join("\n\n") +
+        "\n\n**Offline grading matches keywords against the reference answer.** It cannot tell whether your reasoning holds.",
+      cards: cards
+    };
+  }
+
   function offlineItem(act, topic) {
     var pool = BANK[act.id] || [];
     if (!pool.length) return null;
@@ -2499,6 +2879,7 @@
   function offlineGradeCore(sess) {
     var act = actById(sess.activityId);
     var item = sess.item || {};
+    if (act.engine === "recall") return offlineRecallGrade(sess);
     if (act.engine === "qset") return offlineQsetGrade(item, sess.answers, null);
 
     var rubric = deriveRubric(item);
@@ -3098,7 +3479,8 @@
     star: ["star story", "star", "star story polish", "behavioral story", "story"],
     rapid: ["rapid fire", "rapid-fire", "rapid fire behavioral", "behavioral round", "rapid round"],
     concept: ["concept review", "concepts", "concept", "recall questions"],
-    lesson: ["lesson", "hello interview lesson", "short lesson", "teach me"]
+    lesson: ["lesson", "hello interview lesson", "short lesson", "teach me"],
+    recall: ["recall", "review", "recall review", "review cards", "my cards", "flashcards", "spaced review", "due cards"]
   };
 
   function normalizeCmd(s) {
@@ -3189,6 +3571,15 @@
       case "start":
         if (!cmd.activity) return false;
         stopCommandListening();
+        /* "hero, start a review" has to be able to fail out loud: there may be
+           nothing due, and silently starting nothing is worse than saying so. */
+        if (cmd.activity === "recall" && !dueCards().length) {
+          var next = nextDueDate();
+          announce("Nothing is due for review today.");
+          renderCommandNote("Nothing is due for review today." +
+            (next ? " The next card comes back on " + fmtDateHuman(next) + "." : ""));
+          return true;
+        }
         announce("Starting " + actById(cmd.activity).name.toLowerCase() + ".");
         startSession(cmd.activity);
         return true;
@@ -3199,14 +3590,14 @@
         return true;
 
       case "next":
-        if (!inSession || !act || act.engine !== "qset") return false;
+        if (!inSession || !act || (act.engine !== "qset" && act.engine !== "recall")) return false;
         var qs = (sess.item && sess.item.questions) || [];
         if ((sess.index || 0) >= qs.length - 1) finishSession();
         else { stopListening(); sess.index = (sess.index || 0) + 1; saveState(); renderSession(); }
         return true;
 
       case "back":
-        if (!inSession || !act || act.engine !== "qset" || !(sess.index > 0)) return false;
+        if (!inSession || !act || (act.engine !== "qset" && act.engine !== "recall") || !(sess.index > 0)) return false;
         stopListening(); sess.index -= 1; saveState(); renderSession();
         return true;
 
@@ -3217,7 +3608,7 @@
           for (var i = sess.messages.length - 1; i >= 0; i--) {
             if (sess.messages[i].role === "assistant") { text = sess.messages[i].content; break; }
           }
-        } else if (act.engine === "qset") {
+        } else if (act.engine === "qset" || act.engine === "recall") {
           var q = ((sess.item && sess.item.questions) || [])[sess.index || 0];
           text = q ? q.q : "";
         } else {
@@ -3376,9 +3767,38 @@
     return pick(pool);
   }
 
+  /* Starting a review is the whole design problem. There is no topic to pick, no
+     length to choose, and no generation call to wait through: the deck already
+     knows what is due, so one tap puts you on card one. */
+  function startRecall() {
+    var cards = pickRecallCards(RECALL_N);
+    if (!cards.length) return false;
+    resetSpeech();
+    state.activeSession = {
+      activityId: "recall",
+      engine: "recall",
+      topic: recallTopicLabel(cards),
+      catOverride: dominantCat(cards),
+      basePts: recallBase(cards),
+      startedAt: Date.now(),
+      status: "ready",
+      source: hasKey() ? "ai" : "offline",
+      item: { questions: cards.map(function (c) {
+        return { q: c.q, ideal: c.ideal, cardId: c.id, cat: c.cat, topic: c.topic,
+          box: c.box || 1, reps: c.reps || 0, lastScore: c.lastScore == null ? null : c.lastScore };
+      }) },
+      messages: [], answers: {}, attachments: [], revealed: {},
+      index: 0, report: null, error: null
+    };
+    saveState();
+    showSession();
+    return true;
+  }
+
   function startSession(activityId) {
     var act = actById(activityId);
     if (!act) return;
+    if (act.engine === "recall") return startRecall();
     resetSpeech();
     state.activeSession = {
       activityId: act.id,
@@ -3533,6 +3953,68 @@
     renderSession();
   }
 
+  /* Every card that was answered gets rescheduled, including the ones the grader
+     forgot to mention — a card that silently keeps its old due date is a card
+     that quietly stops being reviewed. */
+  function applyRecallResults(sess, report) {
+    var qs = (sess.item || {}).questions || [];
+    var byIndex = {};
+    ((report && report.cards) || []).forEach(function (c) {
+      if (c && typeof c.index === "number") byIndex[c.index] = c;
+    });
+    var today = todayStr();
+    var moves = [];
+
+    qs.forEach(function (q, i) {
+      var card = cardById(q.cardId);
+      if (!card) return;
+      var got = byIndex[i] || {};
+      var score = typeof got.score === "number" ? clamp(Math.round(got.score), 0, 100)
+                : (report && typeof report.score === "number" ? report.score : 0);
+      var from = card.box || 1;
+      /* Reading the reference answer and then writing it back is not recall, so
+         a revealed card can hold its box but never climb. */
+      var peeked = ((sess.revealed || {})["q" + i] || 0) >= 2;
+      var to = from;
+      if (score >= RECALL_GOOD) to = peeked ? from : Math.min(RECALL_BOXES, from + 1);
+      else if (score < RECALL_PARTIAL) { to = 1; card.lapses = (card.lapses || 0) + 1; }
+
+      var prev = card.lastScore == null ? null : card.lastScore;
+      card.box = to;
+      card.due = addDays(today, RECALL_DAYS[to - 1]);
+      card.reps = (card.reps || 0) + 1;
+      card.lastScore = score;
+      card.lastAt = today;
+      card.history = (card.history || []).concat([{ at: today, score: score, box: to }]).slice(-8);
+
+      moves.push({ cardId: card.id, q: q.q, cat: card.cat, topic: card.topic,
+        prev: prev, score: score, from: from, to: to, due: card.due, peeked: peeked,
+        reps: card.reps, verdict: got.verdict || "", correction: got.correction || "" });
+    });
+
+    sess.moves = moves;
+    state.recall.reviewed = (state.recall.reviewed || 0) + moves.length;
+    state.recall.sessions = (state.recall.sessions || 0) + 1;
+    return moves;
+  }
+
+  /* "Better than last time" only means anything against the same activity, so
+     this is snapshotted before today's entry lands in the log. */
+  function priorAttempts(sess) {
+    var id = sess.activityId, scores = [], last = null;
+    (state.user.history || []).forEach(function (h) {
+      (h.entries || []).forEach(function (e) {
+        if (e.activityId !== id || typeof e.score !== "number") return;
+        scores.push(e.score);
+        last = { score: e.score, date: h.date, bar: e.bar || "" };
+      });
+    });
+    if (!scores.length) return null;
+    var sum = scores.reduce(function (a, b) { return a + b; }, 0);
+    return { n: scores.length, avg: Math.round(sum / scores.length),
+      best: Math.max.apply(null, scores), last: last };
+  }
+
   async function finishSession() {
     var sess = state.activeSession;
     if (!sess || busy) return;
@@ -3543,6 +4025,7 @@
     sess.error = null;
     renderSession();
 
+    var act = actById(sess.activityId);
     var report = null, source = sess.source;
     if (hasKey()) {
       try {
@@ -3559,6 +4042,9 @@
     sess.report = report;
     sess.source = source;
     sess.status = "done";
+    sess.prev = priorAttempts(sess);
+    if (act.engine === "recall") applyRecallResults(sess, report);
+    else sess.captured = captureCards(sess, report);
     sess.entry = awardSession(sess, report);
     busy = false;
     saveState();
@@ -3601,7 +4087,7 @@
         '<h2>' + escapeHtml(act.name) + '</h2>' +
         '<span class="session-topic">' + escapeHtml(sess.topic || "") + '</span>' +
         sourceChip(sess.source) +
-        '<span class="chip chip-pts">+' + act.pts + ' at stake</span>' +
+        '<span class="chip chip-pts">+' + (typeof sess.basePts === "number" ? sess.basePts : act.pts) + ' at stake</span>' +
       '</div>' +
       '<div class="session-actions">' +
         ((speech.canSpeak || speech.canListen)
@@ -3694,6 +4180,8 @@
       h += reportHtml(sess, act);
     } else if (act.engine === "chat") {
       h += chatBodyHtml(sess, act);
+    } else if (act.engine === "recall") {
+      h += recallBodyHtml(sess, act);
     } else if (act.engine === "qset") {
       h += qsetBodyHtml(sess, act);
     } else {
@@ -3715,7 +4203,9 @@
 
     if (act.engine === "chat") {
       speech.onAutoSend = function () { sendChatTurn(fieldValue("chat")); };
-    } else if (act.engine === "qset") {
+    } else if (act.engine === "qset" || act.engine === "recall") {
+      /* Reviewing out loud while walking is far easier to start than sitting
+         down to type, and it is closer to the interview anyway. */
       speech.onAutoSend = function () {
         var qs = (sess.item && sess.item.questions) || [];
         if ((sess.index || 0) >= qs.length - 1) finishSession();
@@ -3731,7 +4221,7 @@
     if (act.engine === "chat" && sess.streaming == null) {
       var last = sess.messages[sess.messages.length - 1];
       if (last && last.role === "assistant") { key = "msg:" + (sess.messages.length - 1); text = last.content; }
-    } else if (act.engine === "qset") {
+    } else if (act.engine === "qset" || act.engine === "recall") {
       var qs2 = (sess.item && sess.item.questions) || [];
       var q = qs2[clamp(sess.index || 0, 0, Math.max(0, qs2.length - 1))];
       if (q) { key = "q:" + sess.index + ":" + (sess.item.title || sess.topic); text = q.q; }
@@ -3821,6 +4311,125 @@
     return h;
   }
 
+  /* One card fills the screen and nothing else does. The dots are there so the
+     end is visible from the start, and the hint is there so that being stuck has
+     an exit which is not closing the tab. */
+  function recallBodyHtml(sess, act) {
+    var qs = (sess.item || {}).questions || [];
+    var i = clamp(sess.index || 0, 0, Math.max(0, qs.length - 1));
+    var q = qs[i] || {};
+    var key = "q" + i;
+    var level = (sess.revealed || {})[key] || 0;
+
+    var h = '<div class="stepper">' + qs.map(function (_, j) {
+      return '<span class="step-dot ' + (j < i ? "done" : j === i ? "now" : "") + '"></span>';
+    }).join("") + '</div>';
+
+    h += '<div class="q-num">Card ' + (i + 1) + ' of ' + qs.length + '</div>';
+
+    var meta = ['<span class="act-cat">' + escapeHtml(q.cat || "") + '</span>'];
+    if (q.topic) meta.push('<span>' + escapeHtml(q.topic) + '</span>');
+    meta.push('<span>box ' + (q.box || 1) + ' of ' + RECALL_BOXES + '</span>');
+    meta.push(q.lastScore == null
+      ? '<span>first review</span>'
+      : '<span>last time ' + q.lastScore + '/100</span>');
+    h += '<div class="card-meta">' + meta.join("") + '</div>';
+
+    h += '<div class="q-text">' + speakBtnHtml("q:" + i) + escapeHtml(q.q || "") + '</div>';
+    h += voiceBarHtml("q" + i);
+    h += fieldHtml(key, "From memory", "Say what you actually remember. Half an answer beats a blank.", 5, false, sess.answers[key]);
+
+    if (level >= 2) {
+      h += '<div class="hint-box"><div class="hint-item"><b>Reference.</b> ' + escapeHtml(q.ideal || "") + '</div>' +
+        '<div class="hint-item" style="color:var(--text-muted);">Revealed, so this card holds its box rather than moving up.</div></div>';
+    } else if (level === 1) {
+      h += '<div class="hint-box"><div class="hint-item"><b>Nudge.</b> ' + escapeHtml(firstClause(q.ideal)) + '</div>' +
+        (q.ideal ? '<button class="btn btn-ghost" data-a="reveal" type="button" style="margin-top:8px;">Show the whole answer</button>' : "") +
+        '</div>';
+    } else if (q.ideal) {
+      h += '<div class="settings-row" style="margin-bottom:10px;">' +
+        '<button class="btn btn-ghost" data-a="reveal" type="button">Stuck? Nudge me</button></div>';
+    }
+
+    var last = i >= qs.length - 1;
+    h += '<div class="settings-row" style="margin-bottom:0;">' +
+      '<button class="btn btn-ghost" data-a="back" type="button"' + (i === 0 ? " disabled" : "") + '>Back</button>' +
+      (last
+        ? '<button class="btn btn-primary" data-a="finish" type="button">Finish &amp; grade</button>'
+        : '<button class="btn btn-primary" data-a="next" type="button">Next card</button>') +
+      '</div>';
+    return h;
+  }
+
+  /* A nudge is the first sentence of the reference, not the reference. */
+  function firstClause(s) {
+    var t = String(s || "").trim();
+    if (!t) return "No reference was stored for this card — answer it however you can.";
+    var cut = t.search(/[.;]\s/);
+    var head = cut > 0 ? t.slice(0, cut + 1) : t;
+    return head.length > 160 ? head.slice(0, 157).replace(/\s\S*$/, "") + "..." : head;
+  }
+
+  function delta(n) { return (n > 0 ? "+" : "") + n; }
+  function deltaClass(n) { return n > 0 ? "up" : n < 0 ? "down" : "flat"; }
+
+  /* Two comparisons, because they answer different questions: how this session
+     went against the last one like it, and — for a review — what happened to
+     each individual card since the last time it came round. */
+  function progressHtml(sess, act) {
+    var r = sess.report || {};
+    var p = sess.prev;
+    var h = '<div class="progress-block"><h4>Against your last time</h4>';
+
+    if (!p) {
+      h += '<div class="progress-line">First ' + escapeHtml(act.name.toLowerCase()) +
+        ' of the season. This is the baseline every later one is measured against.</div>';
+    } else {
+      var d = (r.score == null ? 0 : r.score) - p.last.score;
+      h += '<div class="progress-line">' +
+        '<span class="pl-now">' + (r.score == null ? "--" : r.score) + '</span>' +
+        '<span class="pl-vs">vs ' + p.last.score + ' on ' + escapeHtml(fmtDateHuman(p.last.date)) + '</span>' +
+        '<span class="pl-delta ' + deltaClass(d) + '">' + delta(d) + '</span></div>';
+      h += '<div class="progress-line sub">Season average ' + p.avg + ' across ' + p.n +
+        ' attempt' + (p.n === 1 ? "" : "s") + ' &middot; best ' + p.best +
+        ((r.score != null && r.score > p.best) ? ' &middot; this one is a new best' : "") + '</div>';
+    }
+    h += '</div>';
+    return h;
+  }
+
+  function recallMovesHtml(sess) {
+    var moves = sess.moves || [];
+    if (!moves.length) return "";
+    /* Count what happened, not what the box number did: a card already in box 1
+       that you miss again has not moved, but it has still gone backwards. */
+    var up = moves.filter(function (m) { return m.to > m.from; }).length;
+    var down = moves.filter(function (m) { return m.score < RECALL_PARTIAL; }).length;
+    var held = moves.length - up - down;
+
+    var h = '<div class="progress-block"><h4>Card by card</h4>' +
+      '<div class="progress-line sub">' + up + ' moved up &middot; ' + held + ' held &middot; ' + down +
+      ' dropped back to tomorrow</div>';
+
+    h += '<div class="card-moves">' + moves.map(function (m) {
+      var d = m.prev == null ? null : m.score - m.prev;
+      return '<div class="card-move">' +
+        '<div class="cm-q">' + escapeHtml(m.q) + '</div>' +
+        '<div class="cm-nums">' +
+          '<span class="cm-score">' + m.score + '</span>' +
+          (m.prev == null ? '<span class="cm-prev">first review</span>'
+                          : '<span class="cm-prev">was ' + m.prev + '</span>' +
+                            '<span class="pl-delta ' + deltaClass(d) + '">' + delta(d) + '</span>') +
+          '<span class="cm-box">box ' + m.from + ' &rarr; ' + m.to + '</span>' +
+          '<span class="cm-due">back ' + escapeHtml(fmtDateHuman(m.due)) + '</span>' +
+        '</div>' +
+        (m.verdict ? '<div class="cm-note">' + escapeHtml(m.verdict) + '</div>' : "") +
+        (m.correction ? '<div class="cm-note fix">' + escapeHtml(m.correction) + '</div>' : "") +
+      '</div>';
+    }).join("") + '</div></div>';
+    return h;
+  }
+
   function reportHtml(sess, act) {
     var r = sess.report || {};
     var e = sess.entry || {};
@@ -3838,7 +4447,11 @@
 
     h += '<div class="award">+' + (e.base || act.pts) + ' ' + escapeHtml(act.name.toLowerCase()) +
       (e.bonus ? '  &middot;  +' + e.bonus + ' consistency bonus (day ' + state.user.streak + ' streak)' : "") +
+      (e.recallBonus ? '  &middot;  +' + e.recallBonus + ' recall bonus (day ' + state.recall.streak + ' review streak)' : "") +
       '  &middot;  ' + (e.points || act.pts) + ' points logged  &middot;  rank #' + myRank() + ' of 10</div>';
+
+    h += progressHtml(sess, act);
+    if (act.engine === "recall") h += recallMovesHtml(sess);
 
     h += '<div class="fb-grid">' +
       '<div class="fb-block strengths"><h4>What worked</h4><ul>' +
@@ -3853,6 +4466,12 @@
     }
     if (r.detail) h += '<div class="md">' + md(r.detail) + '</div>';
 
+    if (act.engine !== "recall" && sess.captured) {
+      h += '<div class="progress-line sub" style="margin-top:14px;">' + sess.captured + ' card' +
+        (sess.captured === 1 ? "" : "s") + ' from this session went into the deck. ' +
+        (sess.captured === 1 ? "It comes" : "They come") + ' back on their own schedule.</div>';
+    }
+
     if (act.engine === "qset" && sess.item && sess.item.questions) {
       h += '<div style="margin-top:18px;"><h4 style="font-family:var(--font-mono);font-size:11px;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-muted);margin:0 0 6px;">Your answers</h4>';
       sess.item.questions.forEach(function (q, i) {
@@ -3864,8 +4483,13 @@
       h += '</div>';
     }
 
+    /* You cannot rerun a review that has nothing left due — offering the button
+       anyway would be offering points that the schedule has already spent. */
+    var againLabel = act.engine === "recall"
+      ? (dueCards().length ? "Review " + Math.min(dueCards().length, RECALL_N) + " more" : "")
+      : "Run another " + act.name.toLowerCase();
     h += '<div class="settings-row" style="margin-top:20px;margin-bottom:0;">' +
-      '<button class="btn btn-ghost" data-a="again" type="button">Run another ' + escapeHtml(act.name.toLowerCase()) + '</button>' +
+      (againLabel ? '<button class="btn btn-ghost" data-a="again" type="button">' + escapeHtml(againLabel) + '</button>' : "") +
       '<button class="btn btn-primary" data-a="done" type="button">Back to the ladder</button></div>';
     return h;
   }
@@ -3935,7 +4559,9 @@
   }
 
   function renderActivities() {
-    var html = ACTIVITIES.map(function (a) {
+    /* Recall has its own panel: it is the one thing that should never be one
+       card in a grid of ten choices. */
+    var html = ACTIVITIES.filter(function (a) { return !a.hidden; }).map(function (a) {
       var st = activityStats(a.id);
       var meta = [];
       meta.push('<span class="act-cat">' + escapeHtml(a.cat) + '</span>');
@@ -3953,6 +4579,50 @@
       '</button>';
     }).join("");
     $("activityGrid").innerHTML = html;
+  }
+
+  /* One button, already loaded, with the count on it. No topic picker, no length
+     picker, nothing to decide — choosing is where a review session dies. */
+  function renderRecall() {
+    var deck = state.cards || [];
+    var due = dueCards();
+    var n = Math.min(due.length, RECALL_N);
+    var r = state.recall || {};
+
+    $("recallHint").textContent = r.streak
+      ? r.streak + " day review streak"
+      : (deck.length ? deck.length + " in the deck" : "Deck empty");
+
+    var h = "";
+    if (!deck.length) {
+      h = '<div class="recall-idle">Nothing to review yet. Every session you finish leaves cards behind &mdash; ' +
+        'the questions you fumbled, plus the two hardest ideas it touched. Finish one and they start showing up here tomorrow.</div>';
+    } else if (!n) {
+      var next = nextDueDate();
+      h = '<div class="recall-idle"><b>Nothing due today.</b> ' + deck.length + ' card' + (deck.length === 1 ? "" : "s") +
+        ' scheduled' + (next ? ', next on ' + escapeHtml(fmtDateHuman(next)) : "") +
+        '. Reviewing early does not help you remember and does not pay points &mdash; the gap is the part that works.</div>';
+    } else {
+      var cats = {}, list = [];
+      due.slice(0, n).forEach(function (c) { var k = c.cat || "Mixed"; if (!cats[k]) { cats[k] = 1; list.push(k); } });
+      h = '<button class="recall-cta" type="button" data-recall="go">' +
+        '<span class="rc-n">' + n + '</span>' +
+        '<span><span class="rc-label">Review ' + n + ' card' + (n === 1 ? "" : "s") + '</span>' +
+        '<span class="rc-sub">' + escapeHtml(list.join(" &middot; ").replace(/&middot;/g, "·")) +
+        ' &middot; about ' + Math.max(2, Math.round(n * 1.5)) + ' minutes &middot; ' +
+        recallBase(due.slice(0, n)) + ' points at stake</span></span></button>';
+      if (due.length > n) {
+        h += '<div class="recall-stats"><span>' + due.length + ' due in total &mdash; five at a time, on purpose</span></div>';
+      }
+    }
+
+    var stats = [];
+    if (deck.length) stats.push('<span>' + deck.length + ' cards</span>');
+    if (r.reviewed) stats.push('<span>' + r.reviewed + ' reviewed</span>');
+    if (r.longestStreak) stats.push('<span>best streak ' + r.longestStreak + 'd</span>');
+    if (stats.length && n) h += '<div class="recall-stats">' + stats.join("") + '</div>';
+
+    $("recallBody").innerHTML = h;
   }
 
   function renderCoach() {
@@ -3973,9 +4643,13 @@
     if (e.topic) bits.push(escapeHtml(e.topic));
     if (e.score != null) bits.push('<span class="chip ' + barClass(e.bar) + '">' + e.score + "/100 &middot; " + escapeHtml(e.bar || "") + "</span>");
     bits.push(e.source === "ai" ? '<span class="chip chip-ai">AI</span>' : '<span class="chip chip-offline">Offline</span>');
+    var parts = [];
+    if (e.bonus) parts.push(e.bonus + " streak");
+    if (e.recallBonus) parts.push(e.recallBonus + " recall");
     return '<div class="entry-row"><div class="entry-main">' + escapeHtml(e.name) +
       '<div class="note">' + bits.join(" ") + '</div></div>' +
-      '<span class="entry-pts">+' + e.points + (e.bonus ? '<small>' + e.base + ' + ' + e.bonus + ' streak</small>' : "") + '</span></div>';
+      '<span class="entry-pts">+' + e.points +
+      (parts.length ? '<small>' + e.base + ' + ' + parts.join(" + ") + '</small>' : "") + '</span></div>';
   }
 
   function renderLog() {
@@ -4206,7 +4880,7 @@
     $("cmdBtn").classList.toggle("hidden", !speech.canListen);
     $("cmdHelpBtn").classList.toggle("hidden", !speech.canListen);
     updateCommandUI();
-    renderTopbar(); renderBanners(); renderFocus(); renderActivities(); renderCoach();
+    renderTopbar(); renderBanners(); renderFocus(); renderRecall(); renderActivities(); renderCoach();
     renderLog(); renderLeaderboard(); renderGauges(); renderChart(); renderRoadmap(); renderSettings();
   }
 
@@ -4439,6 +5113,14 @@
     startSession(btn.getAttribute("data-start"));
   });
 
+  $("recallBody").addEventListener("click", function (ev) {
+    if (!ev.target.closest("[data-recall]")) return;
+    if (state.activeSession && state.activeSession.status !== "done") {
+      if (!confirm("You have an unfinished session. Starting a review abandons it. Continue?")) return;
+    }
+    startRecall();
+  });
+
   $("focusSelect").addEventListener("change", function () { state.focus = this.value; saveState(); });
 
   $("cmdBtn").addEventListener("click", function () { renderCommandNote(""); startCommandListening(); });
@@ -4505,6 +5187,13 @@
     else if (a === "next") { sess.index = (sess.index || 0) + 1; saveState(); renderSession(); }
     else if (a === "back") { sess.index = Math.max(0, (sess.index || 0) - 1); saveState(); renderSession(); }
     else if (a === "hint") { sess.hints = (sess.hints || 0) + 1; saveState(); renderSession(); }
+    else if (a === "reveal") {
+      var rk = "q" + clamp(sess.index || 0, 0, 99);
+      sess.revealed = sess.revealed || {};
+      sess.revealed[rk] = (sess.revealed[rk] || 0) + 1;
+      saveState();
+      renderSession();
+    }
     else if (a === "retry") { runGeneration(); }
     else if (a === "exit") { resetSpeech(); showDashboard(); renderDashboard(); }
     else if (a === "abandon") { if (confirm("Abandon this session? No points are awarded.")) abandonSession(); }

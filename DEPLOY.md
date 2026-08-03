@@ -11,6 +11,7 @@ This takes about fifteen minutes and costs nothing — everything below is insid
 | **Who can open it** | Anyone with the password. The API refuses every request without a valid session. |
 | **Where the key lives** | A deployment secret. It is never sent to a browser — sessions call your own `/api/claude`, which adds the key server-side. |
 | **Where progress lives** | Cloudflare KV, keyed by your identity. Every device pulls it on load and pushes as you practise. |
+| **Daily nudge** | Optional. A GitHub Actions cron asks your deployment to mail you one line about what to do today. Free on both sides. |
 | **Login** | A password you set as a deployment secret, exchanged for an HttpOnly session cookie. Upgradeable to Cloudflare Access later without code changes. |
 
 In this mode the app's lock screen becomes a single password prompt: no local profiles, no per-device key, because the server holds both.
@@ -125,6 +126,44 @@ Sessions last 24 hours by default. Changing `APP_PASSWORD` signs out every devic
 
 ---
 
+---
+
+## 6. The daily nudge email (optional)
+
+A mail every morning naming the one thing to do today: the streak that ends tonight, the cards that came back, or the rival who is forty points ahead. Every number in it is read out of your own season — there is nothing invented in it, which is the only reason it keeps working on someone who wrote the app.
+
+Pages Functions have no scheduler, so the clock lives in GitHub Actions and the mail itself is composed and sent by `/api/nudge`. Your progress never passes through GitHub; the workflow only makes one authenticated HTTPS request.
+
+**a. Get a mail provider.** [Resend](https://resend.com) has a free tier of 100 emails a day, which is 100× what this needs. Sign up, create an API key. You can send from their `onboarding@resend.dev` sender immediately; to send from your own domain you have to verify it with them first.
+
+**b. Add four variables** on the Pages project (Settings → Environment variables → Production), the same place `APP_PASSWORD` went:
+
+| Name | Value |
+| --- | --- |
+| `RESEND_API_KEY` | the key from Resend — **encrypt this one** |
+| `NUDGE_SECRET` | a long random string you invent — **encrypt this one** |
+| `NUDGE_TO` | where the mail goes |
+| `NUDGE_TZ` | your timezone, e.g. `America/Los_Angeles` |
+
+Two more are optional: `NUDGE_FROM` (defaults to Resend's shared sender) and `APP_URL` (defaults to the deployment's own origin, which is right unless you use a custom domain).
+
+`NUDGE_TZ` matters. The season stores local dates, so without it a cron firing at 14:00 UTC can tell someone in California their streak broke while it is still yesterday evening for them.
+
+**c. Add two repository secrets** on GitHub (Settings → Secrets and variables → Actions):
+
+| Name | Value |
+| --- | --- |
+| `NUDGE_URL` | `https://<project>.pages.dev/api/nudge` |
+| `NUDGE_SECRET` | the same string you set on Cloudflare |
+
+**d. Redeploy**, then test it from the Actions tab: run **Daily nudge** manually with *dry* ticked. That renders the mail and prints the subject line without sending anything. Untick it to send one for real. After that it runs itself at 14:00 UTC daily.
+
+Change the hour by editing the `cron` line in `.github/workflows/nudge.yml`. Turn the whole thing off by deleting that file — nothing else depends on it.
+
+> GitHub disables scheduled workflows on a repository with no activity for 60 days. If the mail stops and nothing else changed, that is why: push anything, or run the workflow once by hand, and it re-arms.
+
+---
+
 ## Checking it works
 
 | Symptom | Cause |
@@ -136,16 +175,23 @@ Sessions last 24 hours by default. Changing `APP_PASSWORD` signs out every devic
 | Sessions still say *Offline bank* | `ANTHROPIC_API_KEY` is not set, or was added as plaintext to the wrong environment. |
 | Chip says **Sync failed** | Hover it for the error. A 503 means the KV binding is missing; a 401 means your session expired — sign in again. |
 | Signed out unexpectedly | The session expired, or `APP_PASSWORD` changed. Both are by design. |
+| Nudge returns **401** | `NUDGE_SECRET` differs between Cloudflare and GitHub, or you have not redeployed since setting it. |
+| Nudge returns **503** | One of `NUDGE_SECRET`, `NUDGE_TO`, or the `PREPHERO` binding is missing. |
+| Nudge returns **404** | No season is stored yet. Open the app once on any device so it syncs, then retry. |
+| Nudge returns **502** | Resend refused it — the response includes their reason. Usually an unverified `NUDGE_FROM` domain. |
+| Nudge arrives with the wrong day's facts | `NUDGE_TZ` is unset or wrong, so the worker is using UTC. |
 
 Anthropic's own **spend limit** on the key is the backstop for all of this. Set one.
 
 ## What still does not sync
 
-**Diagrams.** Attached images are stripped before the season is pushed — they are megabytes of base64 belonging to the device that took the screenshot. Everything else (points, log, streak, rivals, milestones, an unfinished session) travels.
+**Diagrams.** Attached images are stripped before the season is pushed — they are megabytes of base64 belonging to the device that took the screenshot. Everything else (points, log, streak, rivals, milestones, your recall deck, an unfinished session) travels.
 
 ## If two devices drift
 
 Practise on a plane on your laptop and on the train on your phone, both offline, and each device has sessions the other has never seen. When they reconnect, the app takes the **union of both logs** and recomputes points and streak from it. Nothing is lost, and re-merging is stable — the session log is the ground truth, and every entry is timestamped.
+
+Recall cards merge the same way but keyed by card id, keeping whichever copy has been reviewed more — so a card you pushed from box 2 to box 3 on your phone this morning is not dragged back by a laptop still holding yesterday's copy.
 
 The server also refuses a write that is older than what it holds; the client merges and retries rather than rolling your ladder backwards.
 

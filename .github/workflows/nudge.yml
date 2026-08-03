@@ -1,0 +1,69 @@
+# The clock for the daily nudge.
+#
+# Cloudflare Pages Functions have no scheduler, so this runs the cron instead:
+# one HTTPS request a day, well inside the free tier on any account. The mail
+# itself is composed and sent by /api/nudge, which reads the season out of KV —
+# nothing about your progress passes through GitHub.
+#
+# Two repository secrets are needed (Settings -> Secrets and variables ->
+# Actions):
+#   NUDGE_URL     https://<your-project>.pages.dev/api/nudge
+#   NUDGE_SECRET  the same value set on the Pages project
+#
+# GitHub disables scheduled workflows on a repository with no activity for 60
+# days. If the mail stops arriving and nothing else changed, that is why: push
+# anything, or press "Run workflow" once, and it re-arms.
+
+name: Daily nudge
+
+on:
+  schedule:
+    # 14:00 UTC. GitHub's scheduler is best-effort and often runs late under
+    # load, so pick an hour where "some time in the next 30 minutes" is fine.
+    - cron: "0 14 * * *"
+  workflow_dispatch:
+    inputs:
+      dry:
+        description: "Render the mail without sending it"
+        type: boolean
+        default: false
+
+jobs:
+  nudge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send the nudge
+        env:
+          NUDGE_URL: ${{ secrets.NUDGE_URL }}
+          NUDGE_SECRET: ${{ secrets.NUDGE_SECRET }}
+          DRY: ${{ inputs.dry }}
+        run: |
+          if [ -z "$NUDGE_URL" ] || [ -z "$NUDGE_SECRET" ]; then
+            echo "NUDGE_URL and NUDGE_SECRET must both be set as repository secrets."
+            exit 1
+          fi
+
+          url="$NUDGE_URL"
+          [ "$DRY" = "true" ] && url="$url?dry=1"
+
+          # Separate the body from the status so a failure is loud rather than a
+          # green tick over a 401.
+          body=$(mktemp)
+          code=$(curl -sS -o "$body" -w "%{http_code}" -X POST "$url" \
+                   -H "x-nudge-key: $NUDGE_SECRET" --max-time 30)
+
+          echo "HTTP $code"
+          # The dry run returns the whole rendered mail; print only the useful part.
+          python3 -c "
+          import json, sys
+          raw = open('$body').read()
+          try:
+              d = json.loads(raw)
+          except ValueError:
+              print(raw[:500]); sys.exit(0)
+          for k in ('sent', 'dry', 'today', 'hook', 'subject', 'id', 'error'):
+              if k in d:
+                  print(f'{k}: {d[k]}')
+          "
+
+          [ "$code" -lt 400 ] || exit 1

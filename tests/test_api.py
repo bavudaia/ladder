@@ -37,13 +37,22 @@ function walk(s, path){
 }
 print("-- schemas are structured-output legal --");
 walk(T.GRADE_SCHEMA, "grade");
+walk(T.RECALL_SCHEMA, "recall");
 T.ACTIVITIES.forEach(function(a){
   var sp = T.genSpec(a, "Caching strategies");
-  if(a.engine==="chat"){ ok(sp===null, a.id+" chat needs no generation spec"); return; }
+  /* A mock is written turn by turn and a review's content is the deck you have
+     already earned, so neither has anything to generate up front. */
+  if(a.engine==="chat" || a.engine==="recall"){ ok(sp===null, a.id+" needs no generation spec"); return; }
   ok(!!sp && !!sp.schema, a.id+" has a generation schema");
   walk(sp.schema, a.id);
   ok(sp.messages[0].content.indexOf("Caching strategies")>=0, a.id+" threads the topic through");
 });
+ok(T.RECALL_SCHEMA.properties.cards.items.properties.index.type === "integer",
+   "recall grading is per card, not one number for the session");
+ok(!T.RECALL_SCHEMA.properties.review_cards,
+   "a review does not ask the grader for more cards — it already has them");
+ok(!!T.GRADE_SCHEMA.properties.review_cards,
+   "every other grading pass does, which is where the deck comes from");
 
 print("-- wire format --");
 T.state.model = "claude-opus-5";
@@ -77,7 +86,8 @@ T.aiJSON(T.genSpec(T.actById("dsa_med"),"Binary search")).then(function(p){
       messages:[{role:"assistant",content:"ask"},{role:"user",content:"answer"}],
       answers:{approach:"a",code:"c",answer:"e",situation:"s",task:"t",action:"ac",result:"r",q0:"a0",q1:"a1"}};
     var g=T.gradeSpec(sess);
-    ok(g.schema===T.GRADE_SCHEMA, a.id+" grades against the shared schema");
+    ok(g.schema===(a.engine==="recall" ? T.RECALL_SCHEMA : T.GRADE_SCHEMA),
+       a.id+" grades against the right schema");
     ok(g.system.length>80 && g.messages[0].content.indexOf("undefined")<0, a.id+" grade prompt is clean");
   });
   ["sd_mock","code_mock"].forEach(function(id){

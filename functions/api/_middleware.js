@@ -121,8 +121,10 @@ export async function onRequest(context) {
   data.accessConfigured = accessConfigured;
   data.passwordConfigured = passwordConfigured;
 
-  /* The probe and the login endpoint have to be reachable while logged out. */
-  if (path === "/api/me" || path === "/api/login" || path === "/api/logout") return next();
+  /* The probe and the login endpoint have to be reachable while logged out.
+   * /api/nudge joins them because the caller is a cron job with no session —
+   * it authenticates itself against NUDGE_SECRET and fails closed without one. */
+  if (path === "/api/me" || path === "/api/login" || path === "/api/logout" || path === "/api/nudge") return next();
 
   if (!configured) {
     return json({ error: {

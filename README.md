@@ -4,7 +4,7 @@ A ranked interview-prep season for senior SWE interviews. You do the practice *i
 
 Open `index.html` in a browser. No build step.
 
-## The ten activities
+## The training floor
 
 Everything on the training floor is a real session with generated content and written feedback.
 
@@ -19,7 +19,9 @@ Everything on the training floor is a real session with generated content and wr
 | Concept review | 20 | Five recall questions on one fundamental, with reference answers revealed at grading |
 | Hello Interview lesson | 10 | A short dense lesson plus two check questions |
 
-**Consistency bonus:** your first session each day earns `5 × streak`, capped at +30/day.
+| **Recall review** | matches the block | Cards drawn from sessions you were already graded on, mixed across tracks, and only the ones due today |
+
+**Consistency bonus:** your first session each day earns `5 × streak`, capped at +30/day. A recall review earns a second bonus off its own streak.
 
 Points are awarded for *completing* a session, at the values above. The grade (0–100 and a bar rating from *Below bar* to *Strong senior*) is separate — it tells you how it went, it doesn't change the payout. Showing up is the game; the grade is the feedback.
 
@@ -30,6 +32,19 @@ Points are awarded for *completing* a session, at the values above. The grade (0
 Two constants at the top of the script control this: `SEASON_EPOCH` (the opening date) and `SEASON_SERIAL`. Changing either wipes progress and arms a fresh season the next time you open the page, keeping your API key and preferences — bump the serial to restart on the *same* date you already have. A synced season from a previous serial is ignored rather than merged, so a reset is not undone by the next device that comes online. "Reset season" in Settings starts a season from today instead (or from the epoch date, if that's still in the future).
 
 Nine rivals matched to your skill level — three grinders, three steady, three casual. They train once per real calendar day whether or not you open the app, so falling behind is real. Standings, division (Unranked → Master), and the trajectory chart all update from that.
+
+
+## Recall
+
+Every graded session leaves cards behind: for a question set, the questions themselves; for everything else, two or three questions the grader writes from what you got wrong or answered shakily. Each card carries a reference answer and sits in one of five Leitner boxes, and the box decides when it comes back — **1, 3, 7, 16, then 35 days**. Answer it well and it climbs a box and goes quiet for longer. Miss it and it drops to box 1 and returns tomorrow. So "review it after ten days" is an outcome rather than a setting, and the daily load stays flat instead of growing with the season.
+
+The panel at the top of the dashboard is deliberately one button with a number on it. No topic picker, no length picker, no generation call to sit through — the deck already knows what is due, so one tap puts you on card one. It is always **five cards at most**, with a dot per card so the end is visible from the start, one card on screen at a time, and a two-stage hint on every card so that being stuck has an exit which is not closing the tab. Voice works throughout, which makes a review something you can do walking.
+
+Selection is mostly cards that went badly with a couple that went fine — the ones that went fine are the ones about to slip — and it interleaves across tracks, because five cards on one topic is recognition practice and five across topics is what an interview actually does to you.
+
+**What it pays.** A review is worth what the block its cards came from is worth: review cards from a system design mock and it pays like a mock. That is only safe because the schedule is the rate limiter — you cannot review a card that is not due, so there is nothing here to farm. Reveal the full reference answer on a card and it can hold its box but never climb.
+
+**At the end** you get the usual report plus two comparisons: this session against your last one of the same kind (with the change, the season average, and your best), and card by card — what you scored last time, what you scored now, the delta, which box it moved to, and when it comes back.
 
 ## Voice
 
@@ -120,7 +135,9 @@ Two devices that both practised offline **merge** when they reconnect: the app t
 
 ## Data
 
-Progress lives in `localStorage` under `prephero_ladder_v2::<profile>`, including any session you leave half-finished — close the tab mid-mock and it's waiting when you come back. Profiles themselves (salt, password verifier, encrypted key) are under `prephero_accounts`. "Reset season" in Settings wipes the current profile's progress (click twice to confirm) but keeps your API key.
+Progress lives in `localStorage` under `prephero_ladder_v2::<profile>`, including your recall deck and any session you leave half-finished — close the tab mid-mock and it's waiting when you come back. Profiles themselves (salt, password verifier, encrypted key) are under `prephero_accounts`. "Reset season" in Settings wipes the current profile's progress (click twice to confirm) but keeps your API key.
+
+The deck is capped at 400 cards; when it overflows, the cards you have already pushed to the highest boxes retire first. Cards sync across devices as a union keyed by card id, so a box you moved on your phone this morning survives a laptop that still holds yesterday's copy.
 
 `index-v1-backup.html` is the previous version of the tracker, kept because this folder isn't under version control.
 
@@ -135,9 +152,14 @@ No dependencies and no build step: the suites pull the `<script>` out of `index.
 | Suite | Covers |
 | --- | --- |
 | `test_auth.py` | The lock screen, password rules, that the API key is never on disk in plaintext, wrong passwords failing closed, per-profile season isolation, the v1 upgrade path, and the insecure-origin message |
-| `test_sessions.py` | All ten session flows end to end, scoring and the consistency bonus, the ledger, voice, browsers without speech, `file://` mic blocking, and the season reset/resume lifecycle |
+| `test_sessions.py` | Every generated session flow end to end, scoring and the consistency bonus, the ledger, voice, browsers without speech, `file://` mic blocking, and the season reset/resume lifecycle |
 | `test_api.py` | Request headers, streaming, structured-output schema legality, per-model capabilities, and every activity's generation and grading prompt |
 | `test_commands.py` | The voice-command grammar, wake-word extraction, and commands executed against live sessions |
 | `test_images.py` | File validation, the downscale/re-encode loop, the content-block wire format, per-turn and per-session budgets, and quota-exhausted saves |
+| `test_recall.py` | Card capture and dedupe, the deck cap, the box schedule, that only due cards can be reviewed, what a review pays, the review streak, the comparison feedback, and deck merging across devices |
+| `test_sync.py` | Hosted probing, pushing and pulling the season, log-union merging, and stale-write conflicts |
+| `test_password.py` | The password deployment: failing closed, lockouts, and how little a signed-out visitor is told |
+| `test_server.py` | Session signing, expiry, tampering, and cookie flags in `functions/api/_lib.js` |
+| `test_nudge.py` | The daily email: that every number in it is real, that there is exactly one call to action, hook priority, and escaping |
 
 Each file also runs standalone (`python3 tests/test_images.py`). Generated JS lands in `tests/.build/`.

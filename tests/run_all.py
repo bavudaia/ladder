@@ -13,7 +13,9 @@ import test_api
 import test_auth
 import test_commands
 import test_images
+import test_nudge
 import test_password
+import test_recall
 import test_server
 import test_sessions
 import test_sync
@@ -27,9 +29,11 @@ def main():
     results.update(test_api.main())
     results.update(test_commands.main())
     results.update(test_images.main())
+    results.update(test_recall.main())
     results.update(test_sync.main())
     results.update(test_password.main())
     results.update(test_server.main())
+    results.update(test_nudge.main())
     return report(results)
 
 

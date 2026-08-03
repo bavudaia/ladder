@@ -26,7 +26,7 @@ SESSIONS = HEAD + r"""
 print("-- season state --");
 /* The epoch is a fixed date, so whether the season has opened depends on when
    this runs. Assert the branch that actually applies today. */
-var TODAY = new Date().toISOString().slice(0,10);
+var TODAY = DAY(0);
 var PRESEASON = TODAY < "2026-08-02";
 ok(T.state.createdAt === (PRESEASON ? "2026-08-02" : TODAY),
    "a season opens on the epoch date, or today once that has passed, got " + T.state.createdAt);
@@ -54,7 +54,11 @@ ok(m.indexOf("<ul><li>one</li></ul>")>=0 && m.indexOf("<ol><li>first</li></ol>")
 ok(T.md("<img src=x onerror=y>").indexOf("&lt;img")>=0, "md escapes html");
 
 print("-- offline bank --");
-T.ACTIVITIES.forEach(function(a){
+/* Recall is excluded on purpose: it is not generated and has no bank entry.
+   Its content is the deck, which only exists once other sessions have been
+   graded, so it gets its own suite rather than a fixture here. */
+var GENERATED = T.ACTIVITIES.filter(function(a){ return !a.hidden; });
+GENERATED.forEach(function(a){
   var it = T.offlineItem(a, "zzz");
   ok(!!it, a.id+" has an offline item");
   if (a.engine==="chat") { ok(it.followups.length>=6, a.id+" followups"); ok(it.rubric.length>=4, a.id+" rubric"); }
@@ -90,7 +94,7 @@ function drive(actId){
   print("  "+actId+": +"+gained+" pts, "+s.report.score+"/100 ("+s.report.bar+")");
   T.state.activeSession = null;
 }
-T.ACTIVITIES.forEach(function(a){ drive(a.id); });
+GENERATED.forEach(function(a){ drive(a.id); });
 
 print("-- template-hole detector --");
 ok(__HOLES("<div>"+undefined+"</div>"), "catches >undefined<");
@@ -264,7 +268,7 @@ done();
 SEASON = HEAD + r"""
 print("-- stale season is re-armed for the epoch date --");
 ok(T.state.epoch === "2026-08-02#3", "state carries the new season id, got " + T.state.epoch);
-var TODAY2 = new Date().toISOString().slice(0,10);
+var TODAY2 = DAY(0);
 ok(T.state.createdAt === (TODAY2 < "2026-08-02" ? "2026-08-02" : TODAY2),
    "a re-armed season opens on the epoch date, or today once that has passed, got " + T.state.createdAt);
 ok(T.state.user.points === 0, "points wiped, got " + T.state.user.points);
