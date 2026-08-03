@@ -3257,6 +3257,11 @@
     if (el) el.value = val;
   }
 
+  /* A restart sooner than this after the last one did not come from a natural
+     pause in speech — nobody starts and stops talking in half a second. */
+  var RESTART_FLOOR_MS = 500;
+  var RESTART_GIVE_UP = 5;
+
   function startListening(fieldName) {
     var why = voiceBlockedReason();
     if (why) { speech.error = why; updateVoiceUI(); return; }
@@ -3315,16 +3320,38 @@
       speech.wantListening = false;
       updateVoiceUI();
     };
+    var lastStart = 0, instantEnds = 0;
+
     rec.onend = function () {
       speech.listening = false;
-      /* Chrome ends the stream on its own pauses; restart while still armed. */
+      /* Chrome ends the stream on its own pauses, and restarting is how
+         continuous dictation survives them — the pauses are seconds apart, so a
+         restart is cheap and invisible.
+
+         But when recognition cannot run at all — permission dismissed rather
+         than denied, or its network service unreachable — it ends the instant it
+         starts and never reports an error. Restarting unconditionally then is a
+         hot loop: it pins a core, and the mic never works while it spins. Count
+         the immediate ones and stop with something the user can act on. */
       if (speech.wantListening) {
+        var now = Date.now();
+        instantEnds = (now - lastStart < RESTART_FLOOR_MS) ? instantEnds + 1 : 0;
+        if (instantEnds >= RESTART_GIVE_UP) {
+          speech.wantListening = false;
+          speech.error = "The microphone kept stopping the moment it started. Check this site's microphone " +
+            "permission in the address bar — if it was dismissed rather than allowed, the browser reports no error. " +
+            "Typing still works.";
+          updateVoiceUI();
+          return;
+        }
+        lastStart = now;
         try { rec.start(); speech.listening = true; } catch (e) { speech.wantListening = false; }
       }
       updateVoiceUI();
     };
 
     speech.rec = rec;
+    lastStart = Date.now();
     try { rec.start(); speech.listening = true; }
     catch (e) { speech.error = "Could not start the microphone."; speech.wantListening = false; }
     updateVoiceUI();
@@ -4845,6 +4872,10 @@
   }
 
   function renderVoiceSettings() {
+    /* The browser fires voiceschanged whenever it finishes loading its voice
+       list, which is usually while the sign-in screen is still up and there is
+       no season to read preferences from. */
+    if (!state) return;
     $("voiceDefaultToggle").checked = !!state.voice.enabled;
     $("rateRange").value = String(state.voice.rate);
     $("rateLabel").textContent = Number(state.voice.rate).toFixed(2).replace(/0$/, "") + "x";
@@ -5229,7 +5260,10 @@
   /* Diagrams: file picker, drag-and-drop onto the panel, and clipboard paste —
      paste is the one that matters, because that is how a drawing tool exports. */
   function inSession() {
-    var sess = state.activeSession;
+    /* This runs from a document-level paste handler, which is live on the sign-in
+       screen too — where there is no season yet. Pasting a password must not
+       throw. */
+    var sess = state && state.activeSession;
     return !!(sess && sess.status === "ready" && !$("viewSession").classList.contains("hidden"));
   }
   /* Swallow the drop even where diagrams are not accepted: the browser's default

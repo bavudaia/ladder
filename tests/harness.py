@@ -59,7 +59,8 @@ EXPORT = """
     cardById: cardById, nextDueDate: nextDueDate, seedBox: seedBox, firstClause: firstClause,
     RECALL_DAYS: RECALL_DAYS, RECALL_N: RECALL_N, RECALL_BOXES: RECALL_BOXES,
     RECALL_MAX_CARDS: RECALL_MAX_CARDS, RECALL_GOOD: RECALL_GOOD, RECALL_PARTIAL: RECALL_PARTIAL,
-    RECALL_SCHEMA: RECALL_SCHEMA, todayStr: todayStr, addDays: addDays };
+    RECALL_SCHEMA: RECALL_SCHEMA, todayStr: todayStr, addDays: addDays,
+    inSession: inSession, attachReady: attachReady };
 """
 
 
@@ -127,8 +128,26 @@ window.speechSynthesis = {
 };
 function FakeRecognition(){ globalThis.__recs.push(this); this.continuous=false; this.interimResults=false;
   this.lang=""; this.started=false; var self=this;
-  this.start=function(){ if(self.started) throw new Error("already started"); self.started=true; };
+  /* __instantEnd models the browser that ends the stream the moment it starts
+     and reports no error — a dismissed mic permission, or the speech service
+     being unreachable. It is the shape that turns an unconditional restart into
+     a hot loop, so the suites have to be able to produce it. */
+  this.starts=0;
+  this.start=function(){
+    if(self.started) throw new Error("already started");
+    self.started=true; self.starts++;
+    /* The browser fires onend from the event loop, never from inside start().
+       Modelling it synchronously would recurse instead of loop, and would let
+       the frames unwind back through "listening = true" — a state the real
+       thing never reaches. */
+    if(globalThis.__instantEnd){ self.started=false;
+      Promise.resolve().then(function(){ if(self.onend) self.onend(); }); }
+  };
   this.stop=function(){ self.started=false; if(self.onend) self.onend(); };
+  /* Chrome ending the stream by itself on a quiet stretch. Distinct from stop(),
+     which is the app asking — and it has to clear started, or the restart the
+     app makes in response would throw "already started". */
+  this.endStream=function(){ self.started=false; if(self.onend) self.onend(); };
   this.abort=function(){ self.started=false; };
   /* helper the tests drive */
   this.emit=function(text, isFinal){

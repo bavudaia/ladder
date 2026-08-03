@@ -1,7 +1,7 @@
 """Session flows, scoring, voice, and season lifecycle."""
 
 import sys
-from harness import HEAD, dom, run, report
+from harness import HEAD, HEAD_RAW, dom, run, report
 
 # A season already in progress under an older serial must be wiped and re-armed
 # to open on the epoch date, keeping preferences and the API key.
@@ -308,6 +308,74 @@ done();
 """
 
 
+GUARDS = HEAD_RAW + r"""
+settle();
+
+print("-- global listeners fire before there is a season --");
+/* The paste handler and the voiceschanged handler are both live on the sign-in
+   screen. Neither has a season to read, and both used to reach straight into it. */
+ok(T.state === null, "nothing is loaded yet");
+
+var threw = null;
+try { T.renderVoiceSettings(); } catch (e) { threw = e; }
+ok(threw === null, "the browser finishing its voice list does not throw, got " + (threw && threw.message));
+
+threw = null;
+try { ok(T.inSession() === false, "no session while signed out"); } catch (e) { threw = e; }
+ok(threw === null, "pasting a password does not throw, got " + (threw && threw.message));
+
+threw = null;
+try { ok(T.attachReady() === false, "and nothing accepts an attachment"); } catch (e) { threw = e; }
+ok(threw === null, "nor does dropping a file on the sign-in screen, got " + (threw && threw.message));
+
+print("-- and still work once a season exists --");
+unlock();
+ok(T.state !== null, "signed in");
+T.renderVoiceSettings();
+ok(__el("voiceSelect")._html.indexOf("Samantha") >= 0, "the voice list renders for real now");
+T.startSession("dsa_med");
+ok(T.inSession() === true, "a live session is recognised");
+ok(T.attachReady() === true, "and it takes diagrams");
+done();
+"""
+
+MICLOOP = HEAD + r"""
+print("-- a microphone that dies the moment it opens is given up on --");
+/* Chrome ends the stream on its own pauses and the app restarts it, which is how
+   continuous dictation survives them. When recognition cannot run at all it ends
+   instantly and reports no error, and that same restart becomes a hot loop that
+   pins a core and never yields a working mic. */
+T.state.voice.enabled = true;
+T.startSession("concept");
+globalThis.__instantEnd = true;
+T.startListening("q0");
+settle();
+
+var rec = globalThis.__recs[globalThis.__recs.length - 1];
+ok(rec.starts <= 8, "it stopped restarting instead of spinning, got " + rec.starts + " starts");
+ok(T.speech.wantListening === false, "and disarmed itself");
+ok(T.speech.listening === false, "so nothing thinks the mic is open");
+ok(String(T.speech.error).indexOf("kept stopping") >= 0, "with an error that says what happened, got " + T.speech.error);
+ok(String(T.speech.error).indexOf("permission") >= 0, "and points at the likely cause");
+ok(String(T.speech.error).indexOf("Typing still works") >= 0, "and says the session is not stuck");
+
+print("-- a normal pause still restarts, because that is the whole point --");
+globalThis.__instantEnd = false;
+T.speech.error = null;
+T.stopListening();                 /* the give-up left the field selected */
+T.startListening("q0");
+settle();
+var rec2 = globalThis.__recs[globalThis.__recs.length - 1];
+ok(T.speech.listening === true, "the mic is open");
+var startsBefore = rec2.starts;
+rec2.endStream();                  /* the browser ending a quiet stretch by itself */
+ok(rec2.starts === startsBefore + 1, "it restarted once, got " + (rec2.starts - startsBefore));
+ok(T.speech.listening === true, "and dictation carries on");
+ok(T.speech.error === null, "with no error raised for an ordinary pause");
+done();
+"""
+
+
 def main():
     results = {
         "sessions": run("sessions", dom(speech_support=False), SESSIONS),
@@ -316,6 +384,8 @@ def main():
         "insecure": run("insecure", dom(speech_support=True, secure=False), INSECURE),
         "season":   run("season",   dom(speech_support=True, seed=STALE, key="sk-ant-test"), SEASON),
         "resume":   run("resume",   dom(speech_support=True, seed=CURRENT), RESUME),
+        "guards":   run("guards",   dom(speech_support=True), GUARDS),
+        "micloop":  run("micloop",  dom(speech_support=True), MICLOOP),
     }
     return results
 

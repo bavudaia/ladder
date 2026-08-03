@@ -50,6 +50,8 @@ Selection is mostly cards that went badly with a couple that went fine — the o
 
 Every session can be run out loud. **Voice mode** (toggle in the session header) reads each interviewer question aloud, then opens the mic automatically — you answer by speaking, and after a few seconds of silence the turn sends itself and the next question comes back. That's a hands-free mock interview, which is the only way this kind of practice matches the real thing.
 
+If the browser ends the recognition stream the moment it opens — which is what a *dismissed* microphone permission looks like, since no error is reported — the app gives up after a few attempts and says so, rather than restarting in a loop. Typing always still works.
+
 Outside voice mode there's a **Speak** button on every answer field for dictation, a ▶ on every interviewer turn and question to replay it, and a *Read feedback aloud* button on the report. The code field has no mic — dictating code is useless.
 
 ### Voice commands
@@ -156,6 +158,7 @@ No dependencies and no build step: the suites pull the `<script>` out of `index.
 | `test_api.py` | Request headers, streaming, structured-output schema legality, per-model capabilities, and every activity's generation and grading prompt |
 | `test_commands.py` | The voice-command grammar, wake-word extraction, and commands executed against live sessions |
 | `test_images.py` | File validation, the downscale/re-encode loop, the content-block wire format, per-turn and per-session budgets, and quota-exhausted saves |
+| `test_sessions.py` (guards, micloop) | That global listeners survive firing before sign-in, and that a microphone which dies as it opens is given up on instead of restarted forever |
 | `test_recall.py` | Card capture and dedupe, the deck cap, the box schedule, that only due cards can be reviewed, what a review pays, the review streak, the comparison feedback, and deck merging across devices |
 | `test_sync.py` | Hosted probing, pushing and pulling the season, log-union merging, and stale-write conflicts |
 | `test_password.py` | The password deployment: failing closed, lockouts, and how little a signed-out visitor is told |
